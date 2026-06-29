@@ -2,13 +2,16 @@
 
 BIN ?= leroymerlin
 
-.PHONY: build test fmt vet tidy check clean
+.PHONY: build test cover fmt vet tidy check clean
 
 build:
 	go build -o $(BIN) ./cmd/leroymerlin
 
 test:
 	go test ./...
+
+cover:
+	./coverage.sh
 
 fmt:
 	@test -z "$$(gofmt -l .)" || { echo "unformatted:"; gofmt -l .; exit 1; }

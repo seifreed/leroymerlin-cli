@@ -1,0 +1,60 @@
+# GoReleaser config — cross-compiles the CLI and publishes a GitHub Release
+# (binaries + checksums) that install.sh downloads from.
+# Run locally:  goreleaser release --snapshot --clean --skip=publish
+# Release (CI):  push a tag `vX.Y.Z` → .github/workflows/release.yml runs this.
+version: 2
+
+project_name: leroymerlin
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: leroymerlin
+    main: ./cmd/leroymerlin
+    binary: leroymerlin
+    env:
+      - CGO_ENABLED=0 # pure-Go deps (utls/toml/kooky) → static, trivially cross-compiled
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ignore:
+      - goos: windows
+        goarch: arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .ShortCommit }}
+      - -X main.date={{ .Date }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: default
+    # Asset name install.sh reconstructs — keep in sync if you change it:
+    #   leroymerlin_<version>_<os>_<arch>.tar.gz  (zip on windows)
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+
+release:
+  draft: false

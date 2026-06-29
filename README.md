@@ -5,6 +5,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/seifreed/leroymerlin-cli/actions/workflows/ci.yml"><img src="https://github.com/seifreed/leroymerlin-cli/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/go-1.26%2B-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go">
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/single%20binary-no%20runtime%20deps-brightgreen?style=flat-square" alt="Single binary">
@@ -48,6 +49,20 @@ If a read ever draws a DataDome challenge, seed a browser cookie once with
 ---
 
 ## Install
+
+**Prebuilt binary** (macOS/Linux, from GitHub Releases):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/seifreed/leroymerlin-cli/main/install.sh | sh
+```
+
+**With Go:**
+
+```bash
+go install github.com/seifreed/leroymerlin-cli/cmd/leroymerlin@latest
+```
+
+**From source:**
 
 ```bash
 git clone https://github.com/seifreed/leroymerlin-cli.git

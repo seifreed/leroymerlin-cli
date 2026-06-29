@@ -4,3 +4,4 @@
 .cursor/
 *.test
 *.har
+coverage.out
