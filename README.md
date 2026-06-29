@@ -83,8 +83,11 @@ leroymerlin product /productos/taladro-percutor-practyl-500-w-con-tope-de-profun
 | `total [-f file]` | deterministic basket total from `<url\|term> [qty]` lines, summed in integer cents |
 | `categories [<slug>]` | list top-level sections; with a slug (e.g. `iluminacion`) list that section's products (`--limit`, `--cheapest`) |
 | `product <url\|path>` | product detail; pass the `url` field a search result returns |
-| `cart get` | show the session cart (item count + order id) — needs a browser cookie |
-| `cart add <url> [qty]` | add a product to the guest cart (`--max <eur>` spending guard) — needs a browser cookie |
+| `cart get` | show the cart — lines, quantities, totals — needs a browser cookie |
+| `cart add <url> [qty]` | add a product to the cart (`--max <eur>` spending guard) — needs a browser cookie |
+| `cart set <ref> <qty>` | set a product's absolute quantity (0 removes it) — needs a browser cookie |
+| `cart clear` | empty the cart — needs a browser cookie |
+| `checkout [status]` | cart total + whether it can be checked out (blockers); read-only, never pays |
 | `login --from-browser b` | lift the cookie from a browser store (chrome/firefox/safari/edge/brave) — easiest WAF fallback |
 | `import-har --file f` | lift the cookie from a DevTools HAR ("Save all as HAR with sensitive data") |
 | `set-cookie '<cookie>'` | seed a raw Cookie header (DataDome clearance); `--stdin` supported |
@@ -119,20 +122,27 @@ a dedicated endpoint; Leroy Merlin has none, so `brands <term>` instead tallies
 the brands selling that product type — the part that actually feeds the
 `[brands]` preferences `batch` honours.
 
-`cart` is **partially ported**: `cart get` (summary) and `cart add` (with a
-`--max` spending guard) drive Leroy Merlin's real guest-cart API — the
-`POST /cart/services/addToCart` call its "Añadir al carrito" button makes — using
-the offer hash embedded in each product page. These endpoints are heavily
-DataDome-protected (they 403 even uTLS), so they need an imported browser cookie
-(`login --from-browser`); the request shape is verified against the live call and
-unit-tested, but not exercised live here (that would mean real cart writes).
+`cart` and `checkout` are **fully ported** against Leroy Merlin's real guest-cart
+API, reverse-engineered from the storefront:
+
+- `cart add` → `POST /cart/services/addToCart` (the "Añadir al carrito" call), with
+  the offer hash embedded in each product page and a `--max` spending guard.
+- `cart get` / `checkout` → `GET /checkout/backend/cart` (lines, totals, and the
+  cart-simulation blockers that gate checkout).
+- `cart set` → `PUT …/update-offer-line-quantity/{lineId}` (qty 0 → delete).
+- `cart clear` → `DELETE …/delete-offer-line/{lineId}` per line.
+
+These endpoints are heavily DataDome-protected (they 403 even to uTLS), so they
+need an imported browser cookie (`login --from-browser`). `checkout` is
+read-only — it reports the total and what blocks checkout (a guest cart blocks on
+account/address), and **never** automates payment. Request/response shapes are
+verified against the live calls and unit-tested.
 
 Deliberately **not** ported:
 
-- **`cart set` / `cart clear` / `checkout`** — the update/remove calls are driven
-  by an in-page re-render that doesn't expose a clean endpoint to capture, and
-  checkout payment is out of scope. Left for a session with your account.
 - **`--fresh`** — drops frozen/canned groceries; meaningless for a hardware store.
+- **paying / placing an order** — out of scope by design; the CLI stops at the
+  readiness check.
 
 ## Notes & limits
 

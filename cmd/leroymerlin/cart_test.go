@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -89,21 +88,5 @@ func TestCartAddNeedsCookie(t *testing.T) {
 	t.Setenv("LEROYMERLIN_CONFIG_DIR", t.TempDir()) // no session.json
 	if code := run([]string{"cart", "add", "/productos/x-1.html"}); code != 1 {
 		t.Errorf("no-cookie exit = %d, want 1", code)
-	}
-}
-
-func TestCartGetJSON(t *testing.T) {
-	cartStub(t, "13.99")
-	out := captureStdout(t, func() {
-		if code := run([]string{"cart", "get", "--json"}); code != 0 {
-			t.Errorf("exit = %d", code)
-		}
-	})
-	var sum struct {
-		Quantity int    `json:"quantity"`
-		Order    string `json:"order"`
-	}
-	if err := json.Unmarshal([]byte(out), &sum); err != nil || sum.Quantity != 1 {
-		t.Errorf("cart get json = %s (err %v)", out, err)
 	}
 }

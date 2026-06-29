@@ -49,6 +49,8 @@ func run(args []string) int {
 		err = cmdWhoami(args[1:])
 	case "cart":
 		err = cmdCart(args[1:])
+	case "checkout":
+		err = cmdCheckout(args[1:])
 	case "import-har":
 		err = cmdImportHar(args[1:])
 	case "set-cookie":
@@ -114,11 +116,15 @@ WAF FALLBACK (only if anonymous reads draw a DataDome challenge):
                           copy the request's Cookie header). --stdin supported.
   whoami                  check whether reads work (and if a cookie is cached)
 
-CART (guest cart — needs your browser session via login/import-har/set-cookie):
-  cart get                show the session cart (item count + order id)
+CART & CHECKOUT (needs your browser session via login/import-har/set-cookie):
+  cart get                show the cart — lines, quantities, totals
   cart add <url> [qty]    add a product (url from search) to the cart
                           --max <eur>  refuse a line over <eur> (spending guard;
                           also LEROYMERLIN_MAX_EUR or [limits] max_eur in config)
+  cart set <ref> <qty>    set a product's absolute quantity (0 removes it)
+  cart clear              remove every line from the cart
+  checkout [status]       cart total + whether it can be checked out (blockers).
+                          Read-only — payment is never automated.
 
 COMMON FLAGS (may go anywhere after the command):
   --lang es               language: es (default) or ca

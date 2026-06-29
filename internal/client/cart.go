@@ -39,6 +39,113 @@ func (c *Client) CartData() (*CartSummary, error) {
 	return &s, nil
 }
 
+const (
+	cartDetailPath = "/checkout/backend/cart"
+	cartUpdatePath = "/checkout/backend/cart/update-offer-line-quantity/"
+	cartDeletePath = "/checkout/backend/cart/delete-offer-line/"
+)
+
+// CartLine is one offer-line in the detailed cart. LineID is the UUID the
+// update/delete endpoints address; Reflm is the product reference. Price is the
+// line total (qty × unit), as the site reports it.
+type CartLine struct {
+	LineID   string  `json:"lineId"`
+	Reflm    string  `json:"reflm"`
+	Name     string  `json:"name"`
+	Quantity int     `json:"quantity"`
+	Price    float64 `json:"price"`
+}
+
+// CartDetail is the full cart from /checkout/backend/cart: lines, the order
+// resume totals, and the checkout-readiness flags.
+type CartDetail struct {
+	OrderID          string     `json:"orderId"`
+	Quantity         int        `json:"quantity"` // total articles
+	Lines            []CartLine `json:"lines"`
+	TotalAmount      float64    `json:"totalAmount"`
+	OffersAmount     float64    `json:"offersAmount"`
+	DeliveryAmount   float64    `json:"deliveryAmount"`
+	DisabledCheckout bool       `json:"disabledCheckout"`
+	Blockers         []string   `json:"blockers"` // cannotBeValidatedReasons
+}
+
+// rawCart projects the fields we read from the detailed-cart response.
+type rawCart struct {
+	OrderID                  string   `json:"orderId"`
+	OffersQuantity           int      `json:"offersQuantity"`
+	DisabledCheckout         bool     `json:"disabledCheckout"`
+	CannotBeValidatedReasons []string `json:"cannotBeValidatedReasons"`
+	OrderResume              struct {
+		TotalAmount    float64 `json:"totalAmount"`
+		OffersAmount   float64 `json:"offersAmount"`
+		DeliveryAmount float64 `json:"deliveryAmount"`
+	} `json:"orderResume"`
+	CartVendors []struct {
+		CartVendorItems []struct {
+			ID            string  `json:"id"`
+			Quantity      int     `json:"quantity"`
+			DiscountPrice float64 `json:"discountPrice"`
+			Offer         struct {
+				RefLM string `json:"refLM"`
+				Label string `json:"label"`
+			} `json:"offer"`
+		} `json:"cartVendorItems"`
+	} `json:"cartVendors"`
+}
+
+// Cart fetches the detailed cart (lines + totals + checkout readiness). Requires
+// an imported cookie — the cart endpoints are DataDome-protected.
+func (c *Client) Cart() (*CartDetail, error) {
+	var rc rawCart
+	if err := c.getJSON(cartDetailPath, &rc); err != nil {
+		return nil, err
+	}
+	d := &CartDetail{
+		OrderID:          rc.OrderID,
+		Quantity:         rc.OffersQuantity,
+		TotalAmount:      rc.OrderResume.TotalAmount,
+		OffersAmount:     rc.OrderResume.OffersAmount,
+		DeliveryAmount:   rc.OrderResume.DeliveryAmount,
+		DisabledCheckout: rc.DisabledCheckout,
+		Blockers:         rc.CannotBeValidatedReasons,
+	}
+	for _, v := range rc.CartVendors {
+		for _, it := range v.CartVendorItems {
+			d.Lines = append(d.Lines, CartLine{
+				LineID:   it.ID,
+				Reflm:    it.Offer.RefLM,
+				Name:     it.Offer.Label,
+				Quantity: it.Quantity,
+				Price:    it.DiscountPrice,
+			})
+		}
+	}
+	return d, nil
+}
+
+// SetLineQuantity sets a cart line's absolute quantity via the update endpoint.
+func (c *Client) SetLineQuantity(lineID string, qty int) error {
+	return c.putJSON(cartUpdatePath+lineID, map[string]int{"quantity": qty})
+}
+
+// DeleteLine removes a cart line entirely.
+func (c *Client) DeleteLine(lineID string) error {
+	req, err := c.newJSONReq("DELETE", cartDeletePath+lineID, nil)
+	if err != nil {
+		return err
+	}
+	return c.doDecode(req, nil)
+}
+
+// putJSON issues a PUT with a JSON body (cart line updates).
+func (c *Client) putJSON(path string, body any) error {
+	req, err := c.newJSONReq("PUT", path, body)
+	if err != nil {
+		return err
+	}
+	return c.doDecode(req, nil)
+}
+
 // addToCartItem is one element of the addToCart POST body, mirroring the exact
 // shape the web app sends.
 type addToCartItem struct {
