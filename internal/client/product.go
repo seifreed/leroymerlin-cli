@@ -22,15 +22,28 @@ type ProductDetail struct {
 		Value string `json:"ratingValue"`
 		Count string `json:"reviewCount"`
 	} `json:"aggregateRating"`
-	Image flexImage `json:"image"`
-	Specs []Spec    `json:"specs,omitempty"` // technical characteristics scraped from the page
-	URL   string    `json:"-"`               // the page we fetched it from
+	Image      flexImage        `json:"image"`
+	Specs      []Spec           `json:"specs,omitempty"`      // technical characteristics scraped from the page
+	Deliveries []DeliveryOption `json:"deliveries,omitempty"` // per-channel stock for the session's store
+	URL        string           `json:"-"`                    // the page we fetched it from
 }
 
 // Spec is one "characteristic" row, e.g. {"Función percutor", "Sí"}.
 type Spec struct {
 	Label string `json:"label"`
 	Value string `json:"value"`
+}
+
+// DeliveryOption is one fulfilment channel from the page's available_deliveries:
+// its type (storeDelivery / homeDelivery / relayDelivery), the stock available
+// for it at the session's store, the shipping cost, and the lead time. The
+// store is whichever one the imported session cookie is set to.
+type DeliveryOption struct {
+	Type   string  `json:"type"`
+	Status string  `json:"status"` // ONSITE | EXPRESS
+	Stock  int     `json:"stock"`
+	Price  float64 `json:"price"`
+	Time   string  `json:"time"` // "2 HOUR", "1 OPENING_DAY"
 }
 
 // Price/Currency/Availability surface the first offer's money fields.
@@ -163,7 +176,62 @@ func (c *Client) Product(urlOrPath string) (*ProductDetail, error) {
 	}
 	d.URL = c.resolve(urlOrPath)
 	d.Specs = parseSpecs(html)
+	d.Deliveries = parseDeliveries(html)
 	return d, nil
+}
+
+// rawDelivery mirrors one available_deliveries entry on the product page.
+type rawDelivery struct {
+	Type   string  `json:"type"`
+	Status string  `json:"stockStatus"`
+	Stock  int     `json:"stock"`
+	Price  float64 `json:"price"`
+	Time   string  `json:"time"`
+}
+
+// parseDeliveries lifts the product page's available_deliveries array (per-channel
+// stock for the session's store) into delivery options. Returns nil when absent.
+func parseDeliveries(html string) []DeliveryOption {
+	raw := extractJSONArray(html, `"available_deliveries"`)
+	if raw == "" {
+		return nil
+	}
+	var rds []rawDelivery
+	if json.Unmarshal([]byte(raw), &rds) != nil {
+		return nil
+	}
+	out := make([]DeliveryOption, 0, len(rds))
+	for _, r := range rds {
+		out = append(out, DeliveryOption{Type: r.Type, Status: r.Status, Stock: r.Stock, Price: r.Price, Time: r.Time})
+	}
+	return out
+}
+
+// extractJSONArray returns the "[...]" that follows key in s, matched by bracket
+// balancing (so nested arrays/objects are kept intact), or "" if not found.
+func extractJSONArray(s, key string) string {
+	k := strings.Index(s, key)
+	if k < 0 {
+		return ""
+	}
+	start := strings.IndexByte(s[k:], '[')
+	if start < 0 {
+		return ""
+	}
+	start += k
+	depth := 0
+	for i := start; i < len(s); i++ {
+		switch s[i] {
+		case '[':
+			depth++
+		case ']':
+			depth--
+			if depth == 0 {
+				return s[start : i+1]
+			}
+		}
+	}
+	return ""
 }
 
 // specRowRE matches one technical-characteristic list item; the captured inner

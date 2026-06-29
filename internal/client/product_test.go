@@ -91,6 +91,34 @@ func TestParseSpecsNone(t *testing.T) {
 	}
 }
 
+func TestParseDeliveries(t *testing.T) {
+	html := `<script>{"offer":{"available_deliveries":[
+	  {"price":0.0,"stock":21,"stockStatus":"ONSITE","time":"2 HOUR","type":"storeDelivery"},
+	  {"price":3.9,"stock":25,"stockStatus":"ONSITE","time":"1 OPENING_DAY","type":"homeDelivery"}
+	]}}</script>`
+	ds := parseDeliveries(html)
+	if len(ds) != 2 {
+		t.Fatalf("want 2 delivery options, got %d", len(ds))
+	}
+	if ds[0].Type != "storeDelivery" || ds[0].Stock != 21 || ds[0].Price != 0 || ds[0].Status != "ONSITE" {
+		t.Errorf("store delivery = %+v", ds[0])
+	}
+	if ds[1].Type != "homeDelivery" || ds[1].Price != 3.9 || ds[1].Stock != 25 {
+		t.Errorf("home delivery = %+v", ds[1])
+	}
+}
+
+func TestExtractJSONArray(t *testing.T) {
+	// nested brackets must stay balanced
+	s := `foo "k":[{"a":[1,2]},{"b":3}] bar`
+	if got := extractJSONArray(s, `"k"`); got != `[{"a":[1,2]},{"b":3}]` {
+		t.Errorf("got %q", got)
+	}
+	if extractJSONArray("no key here", `"k"`) != "" {
+		t.Error("missing key should yield empty")
+	}
+}
+
 func TestParseProductDetailNoProduct(t *testing.T) {
 	_, err := parseProductDetail(`<script type="application/ld+json">{"@type":"Website"}</script>`)
 	if err != ErrNoProduct {

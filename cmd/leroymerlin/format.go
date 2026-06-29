@@ -71,8 +71,44 @@ func detailLines(d *client.ProductDetail) string {
 			fmt.Fprintf(&b, "    %s: %s\n", s.Label, s.Value)
 		}
 	}
+	if len(d.Deliveries) > 0 {
+		fmt.Fprintf(&b, "  disponibilidad:\n")
+		for _, dl := range d.Deliveries {
+			cost := "gratis"
+			if dl.Price > 0 {
+				cost = eur(dl.Price)
+			}
+			fmt.Fprintf(&b, "    %-22s %d uds  %s  %s\n", deliveryLabel(dl.Type), dl.Stock, cost, leadTime(dl.Time))
+		}
+	}
 	fmt.Fprintf(&b, "  %s\n", d.URL)
 	return b.String()
+}
+
+// deliveryLabel turns an available_deliveries type into a Spanish label.
+func deliveryLabel(t string) string {
+	switch t {
+	case "storeDelivery":
+		return "recogida en tienda:"
+	case "homeDelivery":
+		return "envío a domicilio:"
+	case "relayDelivery":
+		return "punto de recogida:"
+	default:
+		return t + ":"
+	}
+}
+
+// leadTime turns "2 HOUR" / "1 OPENING_DAY" into "en 2 h" / "en 1 día lab.".
+func leadTime(t string) string {
+	switch {
+	case strings.HasSuffix(t, "HOUR"):
+		return "en " + strings.TrimSuffix(strings.TrimSpace(strings.TrimSuffix(t, "HOUR")), " ") + " h"
+	case strings.HasSuffix(t, "OPENING_DAY"):
+		return "en " + strings.TrimSpace(strings.TrimSuffix(t, "OPENING_DAY")) + " día lab."
+	default:
+		return t
+	}
 }
 
 func truncateLine(s string, n int) string {

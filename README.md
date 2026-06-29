@@ -97,7 +97,7 @@ leroymerlin product /productos/taladro-percutor-practyl-500-w-con-tope-de-profun
 | `brands <term...>` | list the brands selling a product type (count + cheapest), to fill `[brands]` in config |
 | `total [-f file]` | deterministic basket total from `<url\|term> [qty]` lines, summed in integer cents |
 | `categories [<slug>]` | list top-level sections; with a slug list its products (`--limit`, `--cheapest`) or its child subcategories (`--subs`) |
-| `product <url\|path>` | product detail; pass the `url` field a search result returns |
+| `product <url\|path>` | product detail (incl. specs + per-channel stock for your session's store); pass the `url` from a search result |
 | `cart get` | show the cart — lines, quantities, totals — needs a browser cookie |
 | `cart add <url> [qty]` | add a product to the cart (`--max <eur>` spending guard) — needs a browser cookie |
 | `cart set <ref> <qty>` | set a product's absolute quantity (0 removes it) — needs a browser cookie |
@@ -176,8 +176,11 @@ Deliberately **not** ported:
   sets (fixed, not paginated), so `categories <slug>` returns what that page lists.
 - **`product` needs the URL**, not a bare reference — the site requires the full
   slug. Take it from `search` output (`url` field / the printed link).
-- **Subcategory tree**: only the top-level sections scrape cleanly; deeper
-  subcategories don't, so drill down with `search` or per-section listing.
+- **Per-store stock**: `product` shows `disponibilidad` (in-store pickup / home
+  delivery / relay-point stock + cost) for the store your imported session cookie
+  is set to. To check another store, select it on leroymerlin.es and re-run
+  `login --from-browser`. A standalone `store search`/`set` command isn't built —
+  the store context lives in the session cookie, not a clean public endpoint.
 
 ## License
 
