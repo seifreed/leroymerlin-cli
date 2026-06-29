@@ -33,6 +33,10 @@ func run(args []string) int {
 	switch args[0] {
 	case "search":
 		err = cmdSearch(args[1:])
+	case "batch":
+		err = cmdBatch(args[1:])
+	case "total":
+		err = cmdTotal(args[1:])
 	case "product":
 		err = cmdProduct(args[1:])
 	case "set-cookie":
@@ -74,6 +78,11 @@ READ COMMANDS (anonymous):
                           --limit N    cap results
                           --cheapest   rank by price (low → high)
                           --in-stock   keep only buyable items
+  batch [-f file]         resolve many terms at once — cheapest in-stock hit per
+                          term (one request each). Terms positional or one/line.
+  total [-f file]         deterministic basket total from '<url|term> [qty]'
+                          lines — summed in integer cents. URLs price from the
+                          product page, terms from their cheapest hit.
   product <url|path>      product detail (price, brand, rating, availability).
                           Pass the url field from a search result.
 

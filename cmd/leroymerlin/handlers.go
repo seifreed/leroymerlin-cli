@@ -79,7 +79,7 @@ func cmdProduct(args []string) error {
 	cl := newClient(cf)
 	d, err := cl.Product(target)
 	if err != nil {
-		if err == client.ErrNoProduct {
+		if status, ok := client.HTTPStatus(err); err == client.ErrNoProduct || (ok && status == 404) {
 			return fmt.Errorf("no product found at %s — check the url from `leroymerlin search`", target)
 		}
 		return err

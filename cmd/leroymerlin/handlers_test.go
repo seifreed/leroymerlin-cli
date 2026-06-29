@@ -96,6 +96,71 @@ func TestProductRejectsNonProductArg(t *testing.T) {
 	}
 }
 
+// withRoutedServer serves productHTML for /productos/ paths and cardHTML for
+// everything else (search), so total can exercise both resolution paths.
+func withRoutedServer(t *testing.T) {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/productos/") {
+			_, _ = w.Write([]byte(productHTML))
+			return
+		}
+		_, _ = w.Write([]byte(cardHTML))
+	}))
+	t.Cleanup(srv.Close)
+	t.Setenv("LEROYMERLIN_BASE_URL", srv.URL)
+	t.Setenv("LEROYMERLIN_CONFIG_DIR", t.TempDir())
+}
+
+func TestBatchHuman(t *testing.T) {
+	withStubServer(t, cardHTML)
+	out := captureStdout(t, func() {
+		if code := run([]string{"batch", "taladro", "broca"}); code != 0 {
+			t.Errorf("exit = %d", code)
+		}
+	})
+	if !strings.Contains(out, "• taladro") || !strings.Contains(out, "• broca") {
+		t.Errorf("batch output missing terms:\n%s", out)
+	}
+	if !strings.Contains(out, "[42] Taladro — 29.99€") {
+		t.Errorf("batch missing resolved product:\n%s", out)
+	}
+}
+
+func TestTotalTermAndURL(t *testing.T) {
+	withRoutedServer(t)
+	out := captureStdout(t, func() {
+		// one search-term line (qty 2 via file) + one product url
+		if code := run([]string{"total", "--json", "taladro", "/productos/x-42.html"}); code != 0 {
+			t.Errorf("exit = %d", code)
+		}
+	})
+	// both lines price at 29.99 × 1 = 29.99 each → total 59.98
+	if !strings.Contains(out, `"total": "59.98"`) {
+		t.Errorf("total wrong:\n%s", out)
+	}
+	if !strings.Contains(out, `"complete": true`) {
+		t.Errorf("expected complete:\n%s", out)
+	}
+}
+
+func TestTotalQtyFromFile(t *testing.T) {
+	withStubServer(t, cardHTML)
+	dir := t.TempDir()
+	f := dir + "/basket.txt"
+	if err := os.WriteFile(f, []byte("taladro 3\n# comment\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out := captureStdout(t, func() {
+		if code := run([]string{"total", "-f", f, "--json"}); code != 0 {
+			t.Errorf("exit = %d", code)
+		}
+	})
+	if !strings.Contains(out, `"total": "89.97"`) { // 29.99 × 3
+		t.Errorf("qty from file wrong:\n%s", out)
+	}
+}
+
 func TestSetCookiePersists(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("LEROYMERLIN_CONFIG_DIR", dir)
