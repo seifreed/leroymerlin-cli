@@ -161,6 +161,31 @@ func TestTotalQtyFromFile(t *testing.T) {
 	}
 }
 
+func TestCategoriesList(t *testing.T) {
+	html := `<a href="/productos/iluminacion/">Iluminación</a><a href="/productos/banos/">Baños</a>`
+	withStubServer(t, html)
+	out := captureStdout(t, func() {
+		if code := run([]string{"categories", "--json"}); code != 0 {
+			t.Errorf("exit = %d", code)
+		}
+	})
+	if !strings.Contains(out, `"path": "/productos/iluminacion/"`) || !strings.Contains(out, `"name": "Baños"`) {
+		t.Errorf("categories list wrong:\n%s", out)
+	}
+}
+
+func TestCategoriesProducts(t *testing.T) {
+	withStubServer(t, cardHTML) // cardHTML has one product (ref 42)
+	out := captureStdout(t, func() {
+		if code := run([]string{"categories", "iluminacion"}); code != 0 {
+			t.Errorf("exit = %d", code)
+		}
+	})
+	if !strings.Contains(out, "[42] Taladro — 29.99€") {
+		t.Errorf("category products wrong:\n%s", out)
+	}
+}
+
 func TestWhoamiReadsOK(t *testing.T) {
 	withStubServer(t, cardHTML) // cardHTML carries cdl_products_list → reads_ok
 	out := captureStdout(t, func() {

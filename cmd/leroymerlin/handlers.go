@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/seifreed/leroymerlin-cli/internal/client"
@@ -40,9 +39,7 @@ func cmdSearch(args []string) error {
 		products = kept
 	}
 	if *cheapest {
-		sort.SliceStable(products, func(i, j int) bool {
-			return products[i].Offer.UnitPriceATI < products[j].Offer.UnitPriceATI
-		})
+		sortCheapest(products)
 	}
 	if *limit > 0 && len(products) > *limit {
 		products = products[:*limit]

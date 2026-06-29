@@ -37,6 +37,8 @@ func run(args []string) int {
 		err = cmdBatch(args[1:])
 	case "total":
 		err = cmdTotal(args[1:])
+	case "categories":
+		err = cmdCategories(args[1:])
 	case "product":
 		err = cmdProduct(args[1:])
 	case "login":
@@ -89,6 +91,10 @@ READ COMMANDS (anonymous):
   total [-f file]         deterministic basket total from '<url|term> [qty]'
                           lines — summed in integer cents. URLs price from the
                           product page, terms from their cheapest hit.
+  categories [<slug>]     list top-level catalog sections; with a slug
+                          (e.g. iluminacion) list that section's products
+                          --limit N    cap products
+                          --cheapest   rank that section's products by price
   product <url|path>      product detail (price, brand, rating, availability).
                           Pass the url field from a search result.
 

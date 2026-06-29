@@ -80,6 +80,7 @@ leroymerlin product /productos/taladro-percutor-practyl-500-w-con-tope-de-profun
 | `search <term...>` | full-text product search. `--limit N`, `--cheapest`, `--in-stock` |
 | `batch [-f file]` | resolve many terms at once — cheapest in-stock hit per term (one request each) |
 | `total [-f file]` | deterministic basket total from `<url\|term> [qty]` lines, summed in integer cents |
+| `categories [<slug>]` | list top-level sections; with a slug (e.g. `iluminacion`) list that section's products (`--limit`, `--cheapest`) |
 | `product <url\|path>` | product detail; pass the `url` field a search result returns |
 | `login --from-browser b` | lift the cookie from a browser store (chrome/firefox/safari/edge/brave) — easiest WAF fallback |
 | `import-har --file f` | lift the cookie from a DevTools HAR ("Save all as HAR with sensitive data") |
