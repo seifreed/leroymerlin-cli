@@ -1,0 +1,78 @@
+package main
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/seifreed/leroymerlin-cli/internal/client"
+)
+
+// eur formats a euro amount as "12.99€".
+func eur(amount float64) string {
+	return fmt.Sprintf("%.2f€", amount)
+}
+
+// productLine renders a one-line search hit:
+// "[19557783] Name — 11.79€ (4.7★)  ⟨promo⟩  [marketplace]".
+func productLine(p client.Product) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "[%s] %s — %s", p.Identifier, strings.TrimSpace(p.Name), eur(p.Offer.UnitPriceATI))
+	if p.Offer.InitialPrice != nil && *p.Offer.InitialPrice > p.Offer.UnitPriceATI {
+		fmt.Fprintf(&b, " (antes %s)", eur(*p.Offer.InitialPrice))
+	}
+	if p.Rating > 0 {
+		fmt.Fprintf(&b, " (%.1f★)", p.Rating)
+	}
+	if p.Sponsored {
+		b.WriteString("  (patrocinado)")
+	}
+	if p.Offer.SellerType == "3P" {
+		seller := p.Offer.SellerName
+		if seller == "" {
+			seller = "marketplace"
+		}
+		fmt.Fprintf(&b, "  [%s]", seller)
+	}
+	if !p.Offer.AddToCart {
+		b.WriteString("  [no disponible]")
+	}
+	if promo := p.Offer.Promo(); promo != "" {
+		fmt.Fprintf(&b, "  ⟨%s⟩", promo)
+	}
+	return b.String()
+}
+
+// detailLines renders a product page as a human-readable block.
+func detailLines(d *client.ProductDetail) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s\n", strings.TrimSpace(d.Name))
+	if d.Brand != "" {
+		fmt.Fprintf(&b, "  marca:        %s\n", d.Brand)
+	}
+	fmt.Fprintf(&b, "  ref:          %s\n", d.SKU)
+	if price := d.Price(); price != "" {
+		fmt.Fprintf(&b, "  precio:       %s %s\n", price, d.Currency())
+	}
+	if av := d.Availability(); av != "" {
+		fmt.Fprintf(&b, "  disponible:   %s\n", av)
+	}
+	if d.Rating != nil && d.Rating.Value != "" {
+		fmt.Fprintf(&b, "  valoración:   %s (%s reseñas)\n", d.Rating.Value, d.Rating.Count)
+	}
+	if d.GTIN != "" {
+		fmt.Fprintf(&b, "  gtin:         %s\n", d.GTIN)
+	}
+	if desc := strings.TrimSpace(d.Description); desc != "" {
+		fmt.Fprintf(&b, "  %s\n", truncateLine(desc, 300))
+	}
+	fmt.Fprintf(&b, "  %s\n", d.URL)
+	return b.String()
+}
+
+func truncateLine(s string, n int) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if r := []rune(s); len(r) > n {
+		return string(r[:n]) + "…"
+	}
+	return s
+}

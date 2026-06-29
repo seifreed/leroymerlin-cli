@@ -1,0 +1,6 @@
+/leroymerlin
+/dist/
+.codegraph/
+.cursor/
+*.test
+*.har
