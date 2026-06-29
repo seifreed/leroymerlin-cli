@@ -39,6 +39,8 @@ func run(args []string) int {
 		err = cmdTotal(args[1:])
 	case "product":
 		err = cmdProduct(args[1:])
+	case "import-har":
+		err = cmdImportHar(args[1:])
 	case "set-cookie":
 		err = cmdSetCookie(args[1:])
 	case "version", "--version", "-v":
@@ -87,6 +89,8 @@ READ COMMANDS (anonymous):
                           Pass the url field from a search result.
 
 WAF FALLBACK (only if anonymous reads draw a DataDome challenge):
+  import-har --file f     lift the cookie from a DevTools HAR ("Save all as HAR
+                          with sensitive data"). --file - reads stdin.
   set-cookie '<cookie>'   seed a raw Cookie header from your browser (DevTools →
                           copy the request's Cookie header). --stdin supported.
 

@@ -92,6 +92,36 @@ func cmdProduct(args []string) error {
 	return nil
 }
 
+// cmdImportHar lifts the browser cookie (DataDome clearance) from a DevTools HAR
+// export and caches it for challenged reads.
+func cmdImportHar(args []string) error {
+	fs := newFlagSet("import-har")
+	file := fs.String("file", "", "path to the HAR export ('-' for stdin)")
+	parseFlags(fs, args)
+	if *file == "" {
+		return fmt.Errorf("usage: leroymerlin import-har --file <export.har>")
+	}
+	var data []byte
+	var err error
+	if *file == "-" {
+		data, err = io.ReadAll(bufio.NewReader(os.Stdin))
+	} else {
+		data, err = os.ReadFile(*file)
+	}
+	if err != nil {
+		return err
+	}
+	cookie, err := client.ParseHAR(data)
+	if err != nil {
+		return err
+	}
+	if err := client.SaveSession(client.Session{Cookie: cookie}); err != nil {
+		return err
+	}
+	fmt.Fprintln(os.Stderr, "cookie imported from HAR")
+	return nil
+}
+
 // cmdSetCookie seeds a raw Cookie header (browser DataDome clearance) used when
 // anonymous reads draw a bot challenge.
 func cmdSetCookie(args []string) error {
