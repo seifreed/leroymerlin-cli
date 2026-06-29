@@ -50,6 +50,38 @@ func parseCategories(html string) []Category {
 	return out
 }
 
+// subcatAnchorRE matches a child-category link in the "thematic mesh": the name
+// is a clean data-button-name attribute, the href a two-segment product path.
+var subcatAnchorRE = regexp.MustCompile(`data-button-name="([^"]+)"[^>]*?href="(/productos/[a-z0-9-]+/[a-z0-9-]+/)"`)
+
+// Subcategories scrapes a category page's child sections (name + path), deduped
+// in document order. Only true children of this category are returned (links to
+// brands or other sections in the same mesh are filtered out). Returns nil for a
+// leaf category or a curated landing page with no children.
+func (c *Client) Subcategories(path string) ([]Category, error) {
+	parent := normalizeCategoryPath(path)
+	html, err := c.GetHTML(parent)
+	if err != nil {
+		return nil, err
+	}
+	return parseSubcategories(html, parent), nil
+}
+
+func parseSubcategories(html, parent string) []Category {
+	var out []Category
+	seen := make(map[string]bool)
+	for _, m := range subcatAnchorRE.FindAllStringSubmatch(html, -1) {
+		name, p := cleanText(m[1]), m[2]
+		// Keep only direct children of the parent (not brand/other-section links).
+		if name == "" || seen[p] || !strings.HasPrefix(p, parent) || p == parent {
+			continue
+		}
+		seen[p] = true
+		out = append(out, Category{Name: name, Path: p})
+	}
+	return out
+}
+
 // CategoryProducts lists the products on a category page. path may be a slug
 // ("iluminacion"), a "productos/iluminacion" path, or a full "/productos/
 // iluminacion/" path — all normalized. limit caps the result count: 0 returns a

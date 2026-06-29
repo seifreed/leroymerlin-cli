@@ -104,7 +104,8 @@ READ COMMANDS (anonymous):
                           lines — summed in integer cents. URLs price from the
                           product page, terms from their cheapest hit.
   categories [<slug>]     list top-level catalog sections; with a slug
-                          (e.g. iluminacion) list that section's products
+                          (e.g. herramientas) list that section's products
+                          --subs       list child subcategories instead
                           --limit N    cap products
                           --cheapest   rank that section's products by price
   product <url|path>      product detail (price, brand, rating, availability).

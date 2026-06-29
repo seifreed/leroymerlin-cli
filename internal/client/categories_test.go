@@ -26,6 +26,22 @@ func TestParseCategories(t *testing.T) {
 	}
 }
 
+func TestParseSubcategories(t *testing.T) {
+	html := `<div class="mesh">
+	  <a class="l-thematicmesh__link" data-button-name="Herramientas manuales" href="/productos/herramientas/herramientas-de-mano/"><img></a>
+	  <a class="l-thematicmesh__link" data-button-name="Aspiradoras" href="/productos/herramientas/aspiradoras/"><img></a>
+	  <a class="l-thematicmesh__link" data-button-name="Dexter" href="/productos/marcas/dexter/"><img></a>
+	  <a class="l-thematicmesh__link" data-button-name="dup" href="/productos/herramientas/herramientas-de-mano/"><img></a>
+	</div>`
+	kids := parseSubcategories(html, "/productos/herramientas/")
+	if len(kids) != 2 {
+		t.Fatalf("want 2 children (brand + dup excluded), got %d: %+v", len(kids), kids)
+	}
+	if kids[0].Name != "Herramientas manuales" || kids[0].Path != "/productos/herramientas/herramientas-de-mano/" {
+		t.Errorf("first child = %+v", kids[0])
+	}
+}
+
 func TestNormalizeCategoryPath(t *testing.T) {
 	for _, in := range []string{"iluminacion", "/iluminacion/", "productos/iluminacion", "/productos/iluminacion/"} {
 		if got := normalizeCategoryPath(in); got != "/productos/iluminacion/" {

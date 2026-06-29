@@ -21,10 +21,30 @@ func cmdCategories(args []string) error {
 	fs, cf := newCommonFlags("categories")
 	limit := fs.Int("limit", 0, "max products when listing a category")
 	cheapest := fs.Bool("cheapest", false, "rank a category's products by price, low → high")
+	subs := fs.Bool("subs", false, "with a slug: list child subcategories instead of products")
 	parseFlags(fs, args)
 
 	cl := newClient(cf)
 	rest := fs.Args()
+
+	if len(rest) > 0 && *subs {
+		kids, err := cl.Subcategories(rest[0])
+		if err != nil {
+			if status, ok := client.HTTPStatus(err); ok && status == 404 {
+				return fmt.Errorf("category %q not found — see `leroymerlin categories`", rest[0])
+			}
+			return err
+		}
+		if done, err := emitStructured(cf, kids); done {
+			return err
+		}
+		if len(kids) == 0 {
+			fmt.Fprintln(os.Stderr, "no subcategories (leaf or curated landing)")
+			return nil
+		}
+		printCategoryList(kids)
+		return nil
+	}
 
 	if len(rest) > 0 {
 		path := rest[0]
@@ -65,6 +85,12 @@ func cmdCategories(args []string) error {
 		fmt.Fprintln(os.Stderr, "no categories found")
 		return nil
 	}
+	printCategoryList(cats)
+	return nil
+}
+
+// printCategoryList renders categories as "  <path>  <name>", path column aligned.
+func printCategoryList(cats []client.Category) {
 	w := 0
 	for _, c := range cats {
 		if len(c.Path) > w {
@@ -74,5 +100,4 @@ func cmdCategories(args []string) error {
 	for _, c := range cats {
 		fmt.Printf("  %-*s  %s\n", w, c.Path, c.Name)
 	}
-	return nil
 }
