@@ -52,17 +52,10 @@ func parseCategories(html string) []Category {
 
 // CategoryProducts lists the products on a category page. path may be a slug
 // ("iluminacion"), a "productos/iluminacion" path, or a full "/productos/
-// iluminacion/" path — all normalized. limit caps the result count (0 = all).
+// iluminacion/" path — all normalized. limit caps the result count: 0 returns a
+// single page; a larger limit auto-paginates (same `p` query param as search).
 func (c *Client) CategoryProducts(path string, limit int) ([]Product, error) {
-	html, err := c.GetHTML(normalizeCategoryPath(path))
-	if err != nil {
-		return nil, err
-	}
-	products := parseProducts(html)
-	if limit > 0 && len(products) > limit {
-		products = products[:limit]
-	}
-	return products, nil
+	return c.paginated(normalizeCategoryPath(path), limit)
 }
 
 // normalizeCategoryPath turns any accepted category reference into the canonical

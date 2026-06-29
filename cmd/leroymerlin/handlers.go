@@ -13,7 +13,7 @@ import (
 // cmdSearch runs a full-text product search.
 func cmdSearch(args []string) error {
 	fs, cf := newCommonFlags("search")
-	limit := fs.Int("limit", 0, "cap results (0 = all the page returns)")
+	limit := fs.Int("limit", 0, "cap results (0 = one page ~48; higher auto-paginates)")
 	cheapest := fs.Bool("cheapest", false, "rank by price, low → high")
 	inStock := fs.Bool("in-stock", false, "keep only buyable items")
 	parseFlags(fs, args)
@@ -24,7 +24,9 @@ func cmdSearch(args []string) error {
 	}
 
 	cl := newClient(cf)
-	products, err := cl.Search(term, 0) // limit applied after filtering/sorting
+	// Pass the limit so the client paginates enough; filtering/sorting/truncation
+	// below still applies (so --in-stock may leave fewer than --limit).
+	products, err := cl.Search(term, *limit)
 	if err != nil {
 		return err
 	}

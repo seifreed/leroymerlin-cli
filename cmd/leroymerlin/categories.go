@@ -28,7 +28,7 @@ func cmdCategories(args []string) error {
 
 	if len(rest) > 0 {
 		path := rest[0]
-		products, err := cl.CategoryProducts(path, 0)
+		products, err := cl.CategoryProducts(path, *limit)
 		if err != nil {
 			if status, ok := client.HTTPStatus(err); ok && status == 404 {
 				return fmt.Errorf("category %q not found — see `leroymerlin categories` for valid sections", path)

@@ -53,6 +53,81 @@ func TestParseProductsEmpty(t *testing.T) {
 	}
 }
 
+func TestSearchPaginates(t *testing.T) {
+	// Each page p serves two unique products; page 1 has no p param.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := r.URL.Query().Get("p")
+		if p == "" {
+			p = "1"
+		}
+		base := p + "0" // page 1 → "10","11"; page 2 → "20","21"; …
+		_, _ = w.Write([]byte(sampleCard(base+"a", "A", 9.99, "LM") + sampleCard(base+"b", "B", 9.99, "LM")))
+	}))
+	defer srv.Close()
+
+	c := New()
+	c.BaseURL = srv.URL
+	got, err := c.Search("x", 5) // wants 5 → needs 3 pages (2+2+2=6 → trim to 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 5 {
+		t.Fatalf("want 5 across pages, got %d: %+v", len(got), got)
+	}
+	// first two from page 1, then page 2, page 3 — all unique
+	ids := map[string]bool{}
+	for _, p := range got {
+		if ids[p.Identifier] {
+			t.Errorf("duplicate across pages: %s", p.Identifier)
+		}
+		ids[p.Identifier] = true
+	}
+	if got[0].Identifier != "10a" || got[2].Identifier != "20a" {
+		t.Errorf("page order wrong: %s … %s", got[0].Identifier, got[2].Identifier)
+	}
+}
+
+func TestSearchStopsWhenPageRepeats(t *testing.T) {
+	// Every page returns the SAME products (param ignored, like a landing page):
+	// dedup makes page 2 add nothing → stop, no runaway to maxPages.
+	hits := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		_, _ = w.Write([]byte(sampleCard("1", "A", 9.99, "LM") + sampleCard("2", "B", 9.99, "LM")))
+	}))
+	defer srv.Close()
+
+	c := New()
+	c.BaseURL = srv.URL
+	got, err := c.Search("x", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Errorf("want 2 unique, got %d", len(got))
+	}
+	if hits > 2 { // page 1 + one more that adds nothing, then stop
+		t.Errorf("fetched %d pages, expected to stop after the repeat", hits)
+	}
+}
+
+func TestSearchLimitZeroOnePage(t *testing.T) {
+	hits := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		_, _ = w.Write([]byte(sampleCard("1", "A", 9.99, "LM")))
+	}))
+	defer srv.Close()
+	c := New()
+	c.BaseURL = srv.URL
+	if _, err := c.Search("x", 0); err != nil {
+		t.Fatal(err)
+	}
+	if hits != 1 {
+		t.Errorf("limit 0 must fetch exactly one page, got %d", hits)
+	}
+}
+
 func TestSearchLimitAndHTTP(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("q") == "" {

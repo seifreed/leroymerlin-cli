@@ -168,9 +168,10 @@ Deliberately **not** ported:
 
 ## Notes & limits
 
-- **Pagination**: the site loads more results via a "load more" button, not a
-  query param, so one `search` (or `categories <slug>`) returns a single page
-  (~24–56 hits) — plenty for ranking. Multi-page paging is not implemented.
+- **Pagination**: `search --limit N` auto-paginates (the site pages via the `p`
+  query param) to gather up to N hits, deduping across pages, capped at 25 pages.
+  `--limit 0` returns a single page (~48). Category pages are curated landing
+  sets (fixed, not paginated), so `categories <slug>` returns what that page lists.
 - **`product` needs the URL**, not a bare reference — the site requires the full
   slug. Take it from `search` output (`url` field / the printed link).
 - **Subcategory tree**: only the top-level sections scrape cleanly; deeper
