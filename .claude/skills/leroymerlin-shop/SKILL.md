@@ -106,10 +106,26 @@ printf 'taladro percutor\nbrocas hormigón\nsilicona sanitaria blanca\ntirafondo
 
 - For anything the user was specific about (model, size, voltage, finish), or where the top hit looks
   off, run `leroymerlin search "<term>" --limit 5` and pick deliberately. Add the spec to the term —
-  `search "broca hormigón 8mm"`, `search "grifo cocina monomando cromo"`.
-- `--cheapest` ranks by price; `--in-stock` keeps only buyable items.
+  `search "broca hormigón 8mm"`, `search "grifo cocina monomando cromo"`. `--limit` above one page
+  auto-paginates, so `--limit 100` casts a wider net when the first page misses the right variant.
+- `--cheapest` ranks by price; `--in-stock` keeps only buyable items; `--on-offer` keeps only items
+  with a discount/promo (use it when the user wants deals or to catch a was-price drop).
+- Browse, don't search, when the user is vague: `leroymerlin categories` lists the top sections,
+  `categories <slug> --subs` drills into subcategories, `categories <slug>` lists that section's
+  products — good for "enséñame opciones de griferías de cocina".
 - Use `--json` when you need to parse refs/prices/URLs reliably (or `--toon` for the same fields at
   fewer tokens). **Keep each hit's `url`** — `cart add` needs it, and `product <url>` gives full detail.
+
+**Verify spec-sensitive or pricey picks with `product <url>` before committing them to the plan.** The
+detail view adds two things `search`/`batch` don't:
+
+- **`características`** (specs: potencia, diámetro, voltaje, material, medidas) — confirm the match is the
+  right 8 mm / 18 V / cromo variant, not a lookalike. Cheap insurance on a taladro, grifo or anything
+  dimensional.
+- **`disponibilidad`** (per-channel stock for the user's store: recogida en tienda / envío a domicilio /
+  punto de recogida, each with stock + cost + lead time). If the user wants **store pickup**, check the
+  *recogida en tienda* line has stock at their store; if it's 0 but home delivery has stock, say so. The
+  store follows their session cookie (see "Authenticate").
 
 **Watch as you match:** packs vs units (a box of 100 tornillos is qty 1, not 100), the right
 dimension/voltage/finish, marketplace sellers (a `seller_type` of `3P` ships from a third party — fine,
@@ -163,16 +179,26 @@ wipe items the user added himself). `--max` is a **per-line** cap, not a basket 
 
 ```bash
 leroymerlin checkout              # readiness: total (items + shipping) and what's blocking
+leroymerlin checkout slots        # delivery/pickup options: mode, date, cost (★ = selected)
+leroymerlin checkout addresses    # the order's delivery/invoice addresses
 ```
 
-`checkout` is **read-only**: it reports the cart total and whether it can be checked out, listing the
-blockers. A **guest cart always blocks on account/address** (`needs an account (log in)`, `needs city`,
-…) — that's expected; finishing the order (account, address, delivery method, payment) happens in the
-browser. The CLI can't book delivery or pay. Tell the user the cart is ready and point them to the web.
-Never claim the order was placed.
+All three are **read-only**. `checkout` reports the cart total and the blockers:
 
-> Free shipping kicks in at **+29€** (you'll see the "Envío gratis en pedidos +29€" promo on many
-> products); under that, a shipping cost shows in `checkout`. There is no hard order minimum.
+- With a **logged-in session** (the normal case here — you imported the cookie via `login
+  --from-browser`), the cart is linked to the account, so the only blocker is usually **picking a
+  delivery slot** (`needs appointment date`). Surface the options with `checkout slots` — you can tell
+  the user "recogida en tienda gratis hoy 18:30, o envío a domicilio 3,90 € el 2-jul" — but the final
+  slot choice + payment happen in the browser.
+- A **guest cart** (no cookie) additionally blocks on account/address (`needs an account (log in)`,
+  `needs city`, …).
+
+The CLI can't book delivery or pay. Tell the user the cart is ready, summarise the delivery options and
+the address it would ship to (`checkout addresses`), and point them to the web to choose a slot and pay.
+**Never claim the order was placed** — there is no `submit`.
+
+> Free shipping kicks in at **+29€** (the "Envío gratis en pedidos +29€" promo on many products); under
+> that, a shipping cost shows in `checkout` / `checkout slots`. There is no hard order minimum.
 
 ## Plain lists, projects, and clarifying
 
@@ -212,8 +238,9 @@ type (count + cheapest price) — the menu for `[brands]` favourites. If the use
 
 ## Reference
 
-- `references/cli-reference.md` — every command, its flags, and the `--json` field shapes (product /
-  search hit, `brandMatch`, cart line, checkout status) for precise parsing.
+- `references/cli-reference.md` — every command, its flags, and the `--json` field shapes (search hit
+  with `offer`/`brandMatch`, product `specs`/`deliveries`, cart line, checkout status/slots/addresses)
+  for precise parsing.
 
 ## Why no all-in-one "shop the photo" script
 
