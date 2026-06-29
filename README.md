@@ -103,6 +103,8 @@ leroymerlin product /productos/taladro-percutor-practyl-500-w-con-tope-de-profun
 | `cart set <ref> <qty>` | set a product's absolute quantity (0 removes it) — needs a browser cookie |
 | `cart clear` | empty the cart — needs a browser cookie |
 | `checkout [status]` | cart total + whether it can be checked out (blockers); read-only, never pays |
+| `checkout addresses` | the order's delivery/invoice addresses — needs a browser cookie |
+| `checkout slots` | available delivery/pickup options with date + cost (★ = selected) — needs a browser cookie |
 | `login --from-browser b` | lift the cookie from a browser store (chrome/firefox/safari/edge/brave) — easiest WAF fallback |
 | `import-har --file f` | lift the cookie from a DevTools HAR ("Save all as HAR with sensitive data") |
 | `set-cookie '<cookie>'` | seed a raw Cookie header (DataDome clearance); `--stdin` supported |

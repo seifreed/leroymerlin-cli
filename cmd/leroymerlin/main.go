@@ -127,8 +127,10 @@ CART & CHECKOUT (needs your browser session via login/import-har/set-cookie):
                           also LEROYMERLIN_MAX_EUR or [limits] max_eur in config)
   cart set <ref> <qty>    set a product's absolute quantity (0 removes it)
   cart clear              remove every line from the cart
-  checkout [status]       cart total + whether it can be checked out (blockers).
-                          Read-only — payment is never automated.
+  checkout [status]       cart total + whether it can be checked out (blockers)
+  checkout addresses      your saved delivery addresses
+  checkout slots          available delivery/pickup options (date + cost)
+                          (all read-only — payment is never automated)
 
 COMMON FLAGS (may go anywhere after the command):
   --lang es               language: es (default) or ca

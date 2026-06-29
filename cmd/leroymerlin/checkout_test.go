@@ -92,6 +92,70 @@ func TestCartClear(t *testing.T) {
 	}
 }
 
+func TestAddressLine(t *testing.T) {
+	a := map[string]any{
+		"firstName": "Ada", "lastName": "Lovelace", "line1": "Calle Falsa 123",
+		"postalCode": "08001", "city": "Barcelona", "phoneNumber": "600",
+	}
+	got := addressLine(a)
+	if got != "Ada, Lovelace, Calle Falsa 123, 08001, Barcelona, 600" {
+		t.Errorf("addressLine = %q", got)
+	}
+	if addressLine(nil) != "" {
+		t.Error("nil address should render empty")
+	}
+}
+
+const shippingStubJSON = `{
+  "addresses": {"deliveryAddress": {"line1":"Calle Falsa 123","city":"Barcelona"}, "invoiceAddress": null},
+  "deliveryVendors": [{"deliveryVendorDeliveryGroups": [{"deliveryVendorServiceLevels": [
+    {"mode":"PICKUP_IN_STORE","labelCode":"PICKUP_EXP","amount":0,"selected":true,"appointmentDate":"2026-07-01T18:30:00+02:00"},
+    {"mode":"HOME_DELIVERY","labelCode":"HOME_STD","amount":3.9,"selected":false,"appointmentDate":"2026-07-02T06:00:00+02:00"}
+  ]}]}]
+}`
+
+func shippingStub(t *testing.T) {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/checkout/backend/shipping") {
+			_, _ = w.Write([]byte(shippingStubJSON))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	dir := t.TempDir()
+	t.Setenv("LEROYMERLIN_BASE_URL", srv.URL)
+	t.Setenv("LEROYMERLIN_CONFIG_DIR", dir)
+	if err := os.WriteFile(dir+"/session.json", []byte(`{"cookie":"datadome=DD"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCheckoutSlots(t *testing.T) {
+	shippingStub(t)
+	out := captureStdout(t, func() {
+		if code := run([]string{"checkout", "slots", "--json"}); code != 0 {
+			t.Errorf("exit = %d", code)
+		}
+	})
+	if !strings.Contains(out, `"mode": "PICKUP_IN_STORE"`) || !strings.Contains(out, `"amount": 3.9`) {
+		t.Errorf("slots json wrong:\n%s", out)
+	}
+}
+
+func TestCheckoutAddresses(t *testing.T) {
+	shippingStub(t)
+	out := captureStdout(t, func() {
+		if code := run([]string{"checkout", "addresses"}); code != 0 {
+			t.Errorf("exit = %d", code)
+		}
+	})
+	if !strings.Contains(out, "Calle Falsa 123") || !strings.Contains(out, "entrega:") {
+		t.Errorf("addresses output wrong:\n%s", out)
+	}
+}
+
 func TestCheckoutStatus(t *testing.T) {
 	cartMutStub(t)
 	out := captureStdout(t, func() {
