@@ -89,12 +89,15 @@ USAGE:
 
 READ COMMANDS (anonymous):
   search <term...>        full-text product search
-                          --limit N    cap results
+                          --limit N    cap results (auto-paginates above one page)
                           --cheapest   rank by price (low → high)
                           --in-stock   keep only buyable items
+                          --on-offer   keep only items with a discount/promo
   batch [-f file]         resolve many terms at once — preferred brand (config
                           [brands] or --brand a,b) else cheapest in-stock hit per
                           term. --no-brands ignores preferences. One request each.
+                          --brand a,b / --no-brands  brand preferences
+                          --on-offer   only terms whose hit has a discount/promo
   brands <term...>        list the brands selling that product type (count +
                           cheapest), to fill [brands] preferred in config.toml
   total [-f file]         deterministic basket total from '<url|term> [qty]'

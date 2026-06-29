@@ -15,6 +15,7 @@ func cmdBatch(args []string) error {
 	file := fs.String("f", "", "file with one search term per line ('-' for stdin); else terms are positional")
 	brand := fs.String("brand", "", "prefer these brands (comma-separated), overriding config for this run")
 	noBrands := fs.Bool("no-brands", false, "ignore configured brand preferences (pick cheapest)")
+	onOfferOnly := fs.Bool("on-offer", false, "only resolve terms whose chosen hit has a discount/promo")
 	parseFlags(fs, args)
 
 	terms, err := collectLines(*file, fs.Args())
@@ -32,6 +33,8 @@ func cmdBatch(args []string) error {
 		Term       string          `json:"term"`
 		Product    *client.Product `json:"product"`
 		BrandMatch string          `json:"brandMatch,omitempty"` // preferred | override | none | off
+		Offer      string          `json:"offer,omitempty"`      // discount | promo
+		OfferLabel string          `json:"offerLabel,omitempty"`
 	}
 	out := make([]hit, 0, len(terms))
 	missing := 0
@@ -43,7 +46,11 @@ func cmdBatch(args []string) error {
 			continue
 		}
 		p, match := resolveBrandHit(prods, t, cfg.Brands, override, *noBrands)
-		out = append(out, hit{Term: t, Product: &p, BrandMatch: match})
+		if *onOfferOnly && !onOffer(p) {
+			continue // term resolved, but its hit has no offer → drop under --on-offer
+		}
+		kind, label := classifyOffer(p)
+		out = append(out, hit{Term: t, Product: &p, BrandMatch: match, Offer: kind, OfferLabel: label})
 	}
 
 	if done, err := emitStructured(cf, out); done {

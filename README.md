@@ -93,7 +93,7 @@ leroymerlin product /productos/taladro-percutor-practyl-500-w-con-tope-de-profun
 | Command | Description |
 |---------|-------------|
 | `search <term...>` | full-text product search. `--limit N`, `--cheapest`, `--in-stock` |
-| `batch [-f file]` | resolve many terms at once — preferred brand (config/`--brand`) else cheapest in-stock hit per term |
+| `batch [-f file]` | resolve many terms at once — preferred brand (config/`--brand`) else cheapest in-stock hit per term; `--on-offer` filters to deals |
 | `brands <term...>` | list the brands selling a product type (count + cheapest), to fill `[brands]` in config |
 | `total [-f file]` | deterministic basket total from `<url\|term> [qty]` lines, summed in integer cents |
 | `categories [<slug>]` | list top-level sections; with a slug (e.g. `iluminacion`) list that section's products (`--limit`, `--cheapest`) |

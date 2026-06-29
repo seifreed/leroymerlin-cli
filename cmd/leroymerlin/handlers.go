@@ -16,6 +16,7 @@ func cmdSearch(args []string) error {
 	limit := fs.Int("limit", 0, "cap results (0 = one page ~48; higher auto-paginates)")
 	cheapest := fs.Bool("cheapest", false, "rank by price, low → high")
 	inStock := fs.Bool("in-stock", false, "keep only buyable items")
+	onOfferOnly := fs.Bool("on-offer", false, "keep only items with a discount/promo")
 	parseFlags(fs, args)
 
 	term := strings.Join(fs.Args(), " ")
@@ -39,6 +40,9 @@ func cmdSearch(args []string) error {
 			}
 		}
 		products = kept
+	}
+	if *onOfferOnly {
+		products = filterOnOffer(products)
 	}
 	if *cheapest {
 		sortCheapest(products)
