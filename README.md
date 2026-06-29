@@ -78,7 +78,8 @@ leroymerlin product /productos/taladro-percutor-practyl-500-w-con-tope-de-profun
 | Command | Description |
 |---------|-------------|
 | `search <term...>` | full-text product search. `--limit N`, `--cheapest`, `--in-stock` |
-| `batch [-f file]` | resolve many terms at once — cheapest in-stock hit per term (one request each) |
+| `batch [-f file]` | resolve many terms at once — preferred brand (config/`--brand`) else cheapest in-stock hit per term |
+| `brands <term...>` | list the brands selling a product type (count + cheapest), to fill `[brands]` in config |
 | `total [-f file]` | deterministic basket total from `<url\|term> [qty]` lines, summed in integer cents |
 | `categories [<slug>]` | list top-level sections; with a slug (e.g. `iluminacion`) list that section's products (`--limit`, `--cheapest`) |
 | `product <url\|path>` | product detail; pass the `url` field a search result returns |
@@ -111,14 +112,16 @@ Ported (same stack, adapted to Leroy Merlin's site): `search`, `batch`, `total`,
 `categories`, `product`, `login --from-browser`, `import-har`, `set-cookie`,
 `whoami`, and the `--json` / `--toon` / `--lang` output modes.
 
+`brands` is **adapted**, not a 1:1 port: bonpreu lists a ~3k brand catalogue from
+a dedicated endpoint; Leroy Merlin has none, so `brands <term>` instead tallies
+the brands selling that product type — the part that actually feeds the
+`[brands]` preferences `batch` honours.
+
 Deliberately **not** ported:
 
 - **`cart` / `checkout`** — these need an authenticated Leroy Merlin account and
   reverse-engineering the cart/checkout *write* API, plus performing real cart
   writes to test. Out of scope for an anonymous read client.
-- **`brands` catalogue** — bonpreu ships ~3k brands from a dedicated endpoint
-  that feeds its brand-preference config; Leroy Merlin exposes no equivalent, so
-  there's nothing clean to mirror.
 - **`--fresh`** — drops frozen/canned groceries; meaningless for a hardware store.
 
 ## Notes & limits

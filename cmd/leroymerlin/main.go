@@ -37,6 +37,8 @@ func run(args []string) int {
 		err = cmdBatch(args[1:])
 	case "total":
 		err = cmdTotal(args[1:])
+	case "brands":
+		err = cmdBrands(args[1:])
 	case "categories":
 		err = cmdCategories(args[1:])
 	case "product":
@@ -86,8 +88,11 @@ READ COMMANDS (anonymous):
                           --limit N    cap results
                           --cheapest   rank by price (low → high)
                           --in-stock   keep only buyable items
-  batch [-f file]         resolve many terms at once — cheapest in-stock hit per
-                          term (one request each). Terms positional or one/line.
+  batch [-f file]         resolve many terms at once — preferred brand (config
+                          [brands] or --brand a,b) else cheapest in-stock hit per
+                          term. --no-brands ignores preferences. One request each.
+  brands <term...>        list the brands selling that product type (count +
+                          cheapest), to fill [brands] preferred in config.toml
   total [-f file]         deterministic basket total from '<url|term> [qty]'
                           lines — summed in integer cents. URLs price from the
                           product page, terms from their cheapest hit.
@@ -111,6 +116,11 @@ COMMON FLAGS (may go anywhere after the command):
   --lang es               language: es (default) or ca
   --json                  emit raw JSON (data→stdout, logs→stderr)
   --toon                  emit TOON instead of JSON (fewer tokens; for agents)
+
+BRAND PREFERENCES (config.toml [brands]; discover names with the 'brands' command):
+  preferred = ["Bosch", …]        favourites by priority — used by batch when stocked
+  mode = "cheapest_among"         among matches: cheapest (default) | "strict_priority"
+  [brands.overrides]              per-term brand, e.g. "taladro" = ["Bosch"]
 
 ENV:
   LEROYMERLIN_BASE_URL    override the host (debugging proxy, mock, staging)

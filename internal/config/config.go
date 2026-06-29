@@ -34,7 +34,21 @@ type Config struct {
 	Defaults struct {
 		Lang string `toml:"lang"` // "es" (default) or "ca"
 	} `toml:"defaults"`
+	Brands Brands `toml:"brands"`
 }
+
+// Brands holds the user's preferred-brand selection used by batch. Empty = no
+// preference (batch keeps picking the cheapest hit). Preferred is a global,
+// priority-ordered list; Overrides maps a search term to its own ordered list
+// (winning over Preferred for matching terms).
+type Brands struct {
+	Preferred []string            `toml:"preferred"` // global, ordered by priority
+	Mode      string              `toml:"mode"`      // "cheapest_among" (default) | "strict_priority"
+	Overrides map[string][]string `toml:"overrides"` // term → ordered brand list
+}
+
+// Configured reports whether any brand preference is set.
+func (b Brands) Configured() bool { return len(b.Preferred) > 0 || len(b.Overrides) > 0 }
 
 // LoadConfig reads config.toml. A missing file is not an error (empty config);
 // any other stat error is returned.

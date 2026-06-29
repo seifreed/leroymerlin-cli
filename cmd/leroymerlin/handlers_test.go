@@ -127,6 +127,31 @@ func TestBatchHuman(t *testing.T) {
 	}
 }
 
+func TestBrandsList(t *testing.T) {
+	withStubServer(t, cardHTML) // one product, brand DEXTER
+	out := captureStdout(t, func() {
+		if code := run([]string{"brands", "taladro", "--json"}); code != 0 {
+			t.Errorf("exit = %d", code)
+		}
+	})
+	if !strings.Contains(out, `"brand": "DEXTER"`) || !strings.Contains(out, `"count": 1`) {
+		t.Errorf("brands json wrong:\n%s", out)
+	}
+}
+
+func TestBatchBrandOverride(t *testing.T) {
+	withStubServer(t, cardHTML) // brand DEXTER
+	out := captureStdout(t, func() {
+		if code := run([]string{"batch", "taladro", "--brand", "Makita", "--json"}); code != 0 {
+			t.Errorf("exit = %d", code)
+		}
+	})
+	// Makita not stocked → fall back to the DEXTER hit, flagged "none"
+	if !strings.Contains(out, `"brandMatch": "none"`) {
+		t.Errorf("expected brandMatch none:\n%s", out)
+	}
+}
+
 func TestTotalTermAndURL(t *testing.T) {
 	withRoutedServer(t)
 	out := captureStdout(t, func() {
