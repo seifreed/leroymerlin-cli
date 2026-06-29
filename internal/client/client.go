@@ -195,34 +195,43 @@ func (c *Client) do(req *http.Request) ([]byte, error) {
 // SSR HTML, retrying transient throttling (429/503) so a burst of reads degrades
 // gracefully instead of failing.
 func (c *Client) GetHTML(url string) (string, error) {
-	url = c.resolve(url)
-	backoff := defaultRetryBase
-	for attempt := 0; ; attempt++ {
-		body, err := c.getOnce(url)
-		if !isRateLimited(err) || attempt >= maxRetries {
-			if err != nil {
-				return "", err
-			}
-			return body, nil
-		}
-		wait := retryWait(err, backoff)
-		status, _ := HTTPStatus(err)
-		c.logf("throttled: HTTP %d on %s — retrying %d/%d in %s", status, url, attempt+1, maxRetries, wait.Round(time.Millisecond))
-		time.Sleep(wait)
-		backoff *= 2
-	}
-}
-
-func (c *Client) getOnce(url string) (string, error) {
-	req, err := c.newReq("GET", url)
+	req, err := c.newReq("GET", c.resolve(url))
 	if err != nil {
 		return "", err
 	}
-	data, err := c.do(req)
+	data, err := c.doWithRetry(req)
 	if err != nil {
 		return "", err
 	}
 	return string(data), nil
+}
+
+// doWithRetry executes req, retrying transient throttling (429/503): up to
+// maxRetries times, honouring Retry-After else exponential backoff with jitter.
+// A request with a body is replayed via GetBody (set by http.NewRequest for the
+// in-memory readers this client uses), so POST retries re-send the body.
+func (c *Client) doWithRetry(req *http.Request) ([]byte, error) {
+	backoff := defaultRetryBase
+	for attempt := 0; ; attempt++ {
+		attemptReq := req
+		if attempt > 0 && req.GetBody != nil {
+			b, berr := req.GetBody()
+			if berr != nil {
+				return nil, berr
+			}
+			attemptReq = req.Clone(req.Context())
+			attemptReq.Body = b
+		}
+		data, err := c.do(attemptReq)
+		if !isRateLimited(err) || attempt >= maxRetries {
+			return data, err
+		}
+		wait := retryWait(err, backoff)
+		status, _ := HTTPStatus(err)
+		c.logf("throttled: HTTP %d on %s — retrying %d/%d in %s", status, req.URL, attempt+1, maxRetries, wait.Round(time.Millisecond))
+		time.Sleep(wait)
+		backoff *= 2
+	}
 }
 
 // resolve turns a site-relative path into an absolute URL against BaseURL; an

@@ -34,6 +34,9 @@ type Config struct {
 	Defaults struct {
 		Lang string `toml:"lang"` // "es" (default) or "ca"
 	} `toml:"defaults"`
+	Limits struct {
+		MaxEUR float64 `toml:"max_eur"` // refuse a cart line over this price (0 = no limit)
+	} `toml:"limits"`
 	Brands Brands `toml:"brands"`
 }
 
