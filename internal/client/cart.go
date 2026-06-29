@@ -160,16 +160,20 @@ type addToCartItem struct {
 
 // AddToCart adds qty of a product (by its reflm + offerId, both from the product
 // page or a search result) to the session cart, then returns the updated summary.
-// Requires an imported cookie — the cart is bound to the browser session.
-func (c *Client) AddToCart(reflm, offerID string, qty int) (*CartSummary, error) {
+// contextCode is the offer's delivery context — empty falls back to the default
+// the storefront uses. Requires an imported cookie (the cart is session-bound).
+func (c *Client) AddToCart(reflm, offerID, contextCode string, qty int) (*CartSummary, error) {
 	if qty <= 0 {
 		qty = 1
+	}
+	if contextCode == "" {
+		contextCode = defaultContextCode
 	}
 	body := []addToCartItem{{
 		Quantity:          qty,
 		Reflm:             reflm,
 		OfferID:           offerID,
-		ContextCode:       defaultContextCode,
+		ContextCode:       contextCode,
 		ATCButtonLocation: "main offer",
 	}}
 	if err := c.postJSON(cartAddPath, body, nil); err != nil {

@@ -50,7 +50,7 @@ func TestAddToCartRequest(t *testing.T) {
 	c := New()
 	c.BaseURL = srv.URL
 	c.Cookie = "datadome=DD; lm-csrf=TOK123"
-	sum, err := c.AddToCart("83085630", "deadbeefdeadbeef", 2)
+	sum, err := c.AddToCart("83085630", "deadbeefdeadbeef", "", 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +88,7 @@ func TestCookieValue(t *testing.T) {
 func TestProductOffer(t *testing.T) {
 	html := `<html>
 	<script type="application/ld+json">{"@type":"Product","name":"Taladro","sku":"83085630","offers":{"price":"13.99","priceCurrency":"EUR"}}</script>
-	<script>{"offer_id":"15cd48c7225762da","seller_id":"002"}</script>
+	<script>{"offer_id":"15cd48c7225762da","contextId":"058","seller_id":"002"}</script>
 	</html>`
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(html))
@@ -97,7 +97,7 @@ func TestProductOffer(t *testing.T) {
 
 	c := New()
 	c.BaseURL = srv.URL
-	reflm, offerID, detail, err := c.ProductOffer("/productos/taladro-83085630.html")
+	reflm, offerID, contextCode, detail, err := c.ProductOffer("/productos/taladro-83085630.html")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,6 +106,9 @@ func TestProductOffer(t *testing.T) {
 	}
 	if offerID != "15cd48c7225762da" {
 		t.Errorf("offerId = %q", offerID)
+	}
+	if contextCode != "058" {
+		t.Errorf("contextCode = %q, want 058 (from offer JSON)", contextCode)
 	}
 	if detail == nil || detail.Price() != "13.99" {
 		t.Errorf("detail = %+v", detail)
@@ -119,7 +122,7 @@ func TestProductOfferMissing(t *testing.T) {
 	defer srv.Close()
 	c := New()
 	c.BaseURL = srv.URL
-	if _, _, _, err := c.ProductOffer("/productos/x-1.html"); err == nil {
+	if _, _, _, _, err := c.ProductOffer("/productos/x-1.html"); err == nil {
 		t.Fatal("want error when offerId absent")
 	}
 }

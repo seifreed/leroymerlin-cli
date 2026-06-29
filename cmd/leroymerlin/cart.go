@@ -179,7 +179,7 @@ func cartAdd(args []string) error {
 		return fmt.Errorf("cart writes need your browser session — run `leroymerlin login --from-browser chrome` (or import-har / set-cookie) first")
 	}
 
-	reflm, offerID, detail, err := cl.ProductOffer(target)
+	reflm, offerID, contextCode, detail, err := cl.ProductOffer(target)
 	if err != nil {
 		return err
 	}
@@ -194,7 +194,7 @@ func cartAdd(args []string) error {
 		}
 	}
 
-	sum, err := cl.AddToCart(reflm, offerID, qty)
+	sum, err := cl.AddToCart(reflm, offerID, contextCode, qty)
 	if err != nil {
 		return cleanCartErr(err)
 	}
