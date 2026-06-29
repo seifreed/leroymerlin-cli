@@ -39,6 +39,10 @@ func run(args []string) int {
 		err = cmdTotal(args[1:])
 	case "product":
 		err = cmdProduct(args[1:])
+	case "login":
+		err = cmdLogin(args[1:])
+	case "whoami":
+		err = cmdWhoami(args[1:])
 	case "import-har":
 		err = cmdImportHar(args[1:])
 	case "set-cookie":
@@ -89,10 +93,13 @@ READ COMMANDS (anonymous):
                           Pass the url field from a search result.
 
 WAF FALLBACK (only if anonymous reads draw a DataDome challenge):
+  login --from-browser b  lift the cookie from a browser's cookie store
+                          (chrome|chromium|firefox|safari|edge|brave; empty = any) — easiest
   import-har --file f     lift the cookie from a DevTools HAR ("Save all as HAR
                           with sensitive data"). --file - reads stdin.
   set-cookie '<cookie>'   seed a raw Cookie header from your browser (DevTools →
                           copy the request's Cookie header). --stdin supported.
+  whoami                  check whether reads work (and if a cookie is cached)
 
 COMMON FLAGS (may go anywhere after the command):
   --lang es               language: es (default) or ca

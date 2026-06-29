@@ -161,6 +161,24 @@ func TestTotalQtyFromFile(t *testing.T) {
 	}
 }
 
+func TestWhoamiReadsOK(t *testing.T) {
+	withStubServer(t, cardHTML) // cardHTML carries cdl_products_list → reads_ok
+	out := captureStdout(t, func() {
+		if code := run([]string{"whoami", "--json"}); code != 0 {
+			t.Errorf("exit = %d", code)
+		}
+	})
+	if !strings.Contains(out, `"reads_ok": true`) || !strings.Contains(out, `"cookie": false`) {
+		t.Errorf("whoami json wrong:\n%s", out)
+	}
+}
+
+func TestLoginRequiresFromBrowser(t *testing.T) {
+	if code := run([]string{"login"}); code != 1 {
+		t.Errorf("bare login exit = %d, want 1 (usage error)", code)
+	}
+}
+
 func TestSetCookiePersists(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("LEROYMERLIN_CONFIG_DIR", dir)

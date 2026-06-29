@@ -78,8 +78,13 @@ leroymerlin product /productos/taladro-percutor-practyl-500-w-con-tope-de-profun
 | Command | Description |
 |---------|-------------|
 | `search <term...>` | full-text product search. `--limit N`, `--cheapest`, `--in-stock` |
+| `batch [-f file]` | resolve many terms at once — cheapest in-stock hit per term (one request each) |
+| `total [-f file]` | deterministic basket total from `<url\|term> [qty]` lines, summed in integer cents |
 | `product <url\|path>` | product detail; pass the `url` field a search result returns |
-| `set-cookie '<cookie>'` | seed a raw Cookie header (DataDome clearance) for challenged reads; `--stdin` supported |
+| `login --from-browser b` | lift the cookie from a browser store (chrome/firefox/safari/edge/brave) — easiest WAF fallback |
+| `import-har --file f` | lift the cookie from a DevTools HAR ("Save all as HAR with sensitive data") |
+| `set-cookie '<cookie>'` | seed a raw Cookie header (DataDome clearance); `--stdin` supported |
+| `whoami` | check whether reads work, and whether a cookie is cached |
 | `version` / `help` | — |
 
 ### Common flags
