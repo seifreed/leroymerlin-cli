@@ -105,16 +105,31 @@ leroymerlin product /productos/taladro-percutor-practyl-500-w-con-tope-de-profun
 
 ---
 
+## Parity with bonpreu-cli
+
+Ported (same stack, adapted to Leroy Merlin's site): `search`, `batch`, `total`,
+`categories`, `product`, `login --from-browser`, `import-har`, `set-cookie`,
+`whoami`, and the `--json` / `--toon` / `--lang` output modes.
+
+Deliberately **not** ported:
+
+- **`cart` / `checkout`** — these need an authenticated Leroy Merlin account and
+  reverse-engineering the cart/checkout *write* API, plus performing real cart
+  writes to test. Out of scope for an anonymous read client.
+- **`brands` catalogue** — bonpreu ships ~3k brands from a dedicated endpoint
+  that feeds its brand-preference config; Leroy Merlin exposes no equivalent, so
+  there's nothing clean to mirror.
+- **`--fresh`** — drops frozen/canned groceries; meaningless for a hardware store.
+
 ## Notes & limits
 
 - **Pagination**: the site loads more results via a "load more" button, not a
-  query param, so one `search` returns a single page (~56 hits) — plenty for
-  ranking. Multi-page paging is not implemented yet.
+  query param, so one `search` (or `categories <slug>`) returns a single page
+  (~24–56 hits) — plenty for ranking. Multi-page paging is not implemented.
 - **`product` needs the URL**, not a bare reference — the site requires the full
   slug. Take it from `search` output (`url` field / the printed link).
-- **No cart/checkout.** Those are authenticated, site-specific flows that would
-  need separate reverse-engineering; the read core is the stack this port
-  demonstrates.
+- **Subcategory tree**: only the top-level sections scrape cleanly; deeper
+  subcategories don't, so drill down with `search` or per-section listing.
 
 ## License
 
