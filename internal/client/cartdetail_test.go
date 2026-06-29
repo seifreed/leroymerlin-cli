@@ -50,6 +50,27 @@ func TestCartDetailParse(t *testing.T) {
 	}
 }
 
+func TestCartDetailFloatCounts(t *testing.T) {
+	// The live API serialises counts with a decimal (offersQuantity: 0.0,
+	// quantity: 3.0) — these must decode, not error on int unmarshal.
+	body := `{"orderId":"o","offersQuantity":3.0,"orderResume":{"totalAmount":4.47},
+	  "cartVendors":[{"cartVendorItems":[{"id":"l","quantity":3.0,"discountPrice":4.47,"offer":{"refLM":"1","label":"x"}}]}]}`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(body))
+	}))
+	defer srv.Close()
+
+	c := New()
+	c.BaseURL = srv.URL
+	cart, err := c.Cart()
+	if err != nil {
+		t.Fatalf("float counts must decode: %v", err)
+	}
+	if cart.Quantity != 3 || cart.Lines[0].Quantity != 3 {
+		t.Errorf("quantities = %d / %d, want 3 / 3", cart.Quantity, cart.Lines[0].Quantity)
+	}
+}
+
 func TestSetLineQuantityRequest(t *testing.T) {
 	var method, path string
 	var body map[string]int

@@ -69,10 +69,12 @@ type CartDetail struct {
 	Blockers         []string   `json:"blockers"` // cannotBeValidatedReasons
 }
 
-// rawCart projects the fields we read from the detailed-cart response.
+// rawCart projects the fields we read from the detailed-cart response. Count
+// fields are float64 because the API serialises them as JSON numbers with a
+// decimal (e.g. offersQuantity: 0.0) that won't unmarshal into int.
 type rawCart struct {
 	OrderID                  string   `json:"orderId"`
-	OffersQuantity           int      `json:"offersQuantity"`
+	OffersQuantity           float64  `json:"offersQuantity"`
 	DisabledCheckout         bool     `json:"disabledCheckout"`
 	CannotBeValidatedReasons []string `json:"cannotBeValidatedReasons"`
 	OrderResume              struct {
@@ -83,7 +85,7 @@ type rawCart struct {
 	CartVendors []struct {
 		CartVendorItems []struct {
 			ID            string  `json:"id"`
-			Quantity      int     `json:"quantity"`
+			Quantity      float64 `json:"quantity"`
 			DiscountPrice float64 `json:"discountPrice"`
 			Offer         struct {
 				RefLM string `json:"refLM"`
@@ -102,7 +104,7 @@ func (c *Client) Cart() (*CartDetail, error) {
 	}
 	d := &CartDetail{
 		OrderID:          rc.OrderID,
-		Quantity:         rc.OffersQuantity,
+		Quantity:         int(rc.OffersQuantity),
 		TotalAmount:      rc.OrderResume.TotalAmount,
 		OffersAmount:     rc.OrderResume.OffersAmount,
 		DeliveryAmount:   rc.OrderResume.DeliveryAmount,
@@ -115,7 +117,7 @@ func (c *Client) Cart() (*CartDetail, error) {
 				LineID:   it.ID,
 				Reflm:    it.Offer.RefLM,
 				Name:     it.Offer.Label,
-				Quantity: it.Quantity,
+				Quantity: int(it.Quantity),
 				Price:    it.DiscountPrice,
 			})
 		}
@@ -211,10 +213,22 @@ func (c *Client) newJSONReq(method, path string, body any) (*http.Request, error
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("accept", "application/json")
+	// Broad accept like the web app's XHR — addToCart replies with text, not JSON,
+	// and a strict application/json accept draws a 406 (even though the write lands).
+	req.Header.Set("accept", "application/json, text/plain, */*")
+	req.Header.Set("accept-language", "es-ES,es;q=0.9,en;q=0.8")
 	req.Header.Set("user-agent", c.UserAgent)
 	req.Header.Set("referer", c.BaseURL+"/")
 	req.Header.Set("origin", c.BaseURL)
+	// Mirror the Client Hints + Fetch Metadata a real Chrome XHR sends — the cart
+	// endpoints run a stricter DataDome rule that scores their absence as bot-like.
+	req.Header.Set("sec-ch-ua", `"Google Chrome";v="149", "Chromium";v="149", "Not)A;Brand";v="24"`)
+	req.Header.Set("sec-ch-ua-mobile", "?0")
+	req.Header.Set("sec-ch-ua-platform", `"macOS"`)
+	req.Header.Set("sec-fetch-dest", "empty")
+	req.Header.Set("sec-fetch-mode", "cors")
+	req.Header.Set("sec-fetch-site", "same-origin")
+	req.Header.Set("x-requested-with", "XMLHttpRequest")
 	if body != nil {
 		req.Header.Set("content-type", "application/json")
 	}
