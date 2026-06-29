@@ -94,6 +94,13 @@ leroymerlin product /productos/taladro-percutor-practyl-500-w-con-tope-de-profun
 | `whoami` | check whether reads work, and whether a cookie is cached |
 | `version` / `help` | — |
 
+### Claude skill
+
+`.claude/skills/leroymerlin-shop/` bundles a `leroymerlin-shop` skill that drives this CLI to do a
+home-improvement / DIY shop from a **photo** (a tool, a part to replace, a room to reform, a materials
+list) or a pasted list: it reads the image, resolves each item to a real product, confirms the plan,
+and fills the cart with a hard `--max` spending cap — and never places the order (checkout is read-only).
+
 ### Common flags
 
 | Flag | Description |
