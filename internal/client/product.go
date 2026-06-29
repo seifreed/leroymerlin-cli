@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"regexp"
 	"strings"
 )
 
@@ -22,7 +23,14 @@ type ProductDetail struct {
 		Count string `json:"reviewCount"`
 	} `json:"aggregateRating"`
 	Image flexImage `json:"image"`
-	URL   string    `json:"-"` // the page we fetched it from
+	Specs []Spec    `json:"specs,omitempty"` // technical characteristics scraped from the page
+	URL   string    `json:"-"`               // the page we fetched it from
+}
+
+// Spec is one "characteristic" row, e.g. {"Función percutor", "Sí"}.
+type Spec struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
 }
 
 // Price/Currency/Availability surface the first offer's money fields.
@@ -154,7 +162,45 @@ func (c *Client) Product(urlOrPath string) (*ProductDetail, error) {
 		return nil, err
 	}
 	d.URL = c.resolve(urlOrPath)
+	d.Specs = parseSpecs(html)
 	return d, nil
+}
+
+// specRowRE matches one technical-characteristic list item; the captured inner
+// HTML is "Label : Value" (after tag stripping).
+var specRowRE = regexp.MustCompile(`(?s)o-main-characteristics__li[^>]*>(.*?)</li>`)
+
+// specJunk marks a captured row that ran past a real characteristic into page
+// scaffolding (the "Ver más" expander wraps scripts/markup) — drop it.
+var specJunk = regexp.MustCompile(`(?i)\{|window\.|-->|Ver más|Añadir|Vendido|EUR|en stock`)
+
+// parseSpecs scrapes the product page's technical characteristics — the
+// "o-main-characteristics" list, where each row reads "Etiqueta : Valor" — into
+// label/value pairs. Returns nil when the page has no such table. Rows whose
+// value is implausibly long or carries page scaffolding are skipped (a malformed
+// list item can otherwise swallow trailing markup).
+func parseSpecs(html string) []Spec {
+	var out []Spec
+	seen := make(map[string]bool)
+	for _, m := range specRowRE.FindAllStringSubmatch(html, -1) {
+		text := cleanText(m[1])
+		// Split on the first " : " so a value containing a colon stays intact.
+		i := strings.Index(text, " : ")
+		if i < 0 {
+			continue
+		}
+		label := strings.TrimSpace(text[:i])
+		value := strings.TrimSpace(text[i+3:])
+		if label == "" || value == "" || seen[label] {
+			continue
+		}
+		if len(label) > 80 || len(value) > 80 || specJunk.MatchString(value) {
+			continue
+		}
+		seen[label] = true
+		out = append(out, Spec{Label: label, Value: value})
+	}
+	return out
 }
 
 const ldMarker = `application/ld+json`

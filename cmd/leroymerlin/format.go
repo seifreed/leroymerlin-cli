@@ -65,6 +65,12 @@ func detailLines(d *client.ProductDetail) string {
 	if desc := strings.TrimSpace(d.Description); desc != "" {
 		fmt.Fprintf(&b, "  %s\n", truncateLine(desc, 300))
 	}
+	if len(d.Specs) > 0 {
+		fmt.Fprintf(&b, "  características:\n")
+		for _, s := range d.Specs {
+			fmt.Fprintf(&b, "    %s: %s\n", s.Label, s.Value)
+		}
+	}
 	fmt.Fprintf(&b, "  %s\n", d.URL)
 	return b.String()
 }

@@ -65,6 +65,32 @@ func TestParseProductDetailFlexForms(t *testing.T) {
 	}
 }
 
+func TestParseSpecs(t *testing.T) {
+	html := `<ul class="o-main-characteristics__ul">
+	  <li class="o-main-characteristics__li"><span class="o-main-characteristics__text">Función percutor : Sí</span></li>
+	  <li class="o-main-characteristics__li"><span class="o-main-characteristics__text">Dimensiones (mm) : 270 : 225 : 70</span></li>
+	  <li class="o-main-characteristics__li"><span class="o-main-characteristics__text">Función percutor : Sí</span></li>
+	  <li class="o-main-characteristics__li">Ver más window.x = { foo: 1 } 21 en stock en Badalona Añadir al carrito</li>
+	</ul>`
+	specs := parseSpecs(html)
+	if len(specs) != 2 {
+		t.Fatalf("want 2 specs (deduped, junk dropped), got %d: %+v", len(specs), specs)
+	}
+	if specs[0].Label != "Función percutor" || specs[0].Value != "Sí" {
+		t.Errorf("first spec = %+v", specs[0])
+	}
+	// value keeps its inner colons (split only on the first " : ")
+	if specs[1].Value != "270 : 225 : 70" {
+		t.Errorf("colon-in-value spec = %+v", specs[1])
+	}
+}
+
+func TestParseSpecsNone(t *testing.T) {
+	if specs := parseSpecs(`<html>no characteristics here</html>`); specs != nil {
+		t.Errorf("want nil, got %+v", specs)
+	}
+}
+
 func TestParseProductDetailNoProduct(t *testing.T) {
 	_, err := parseProductDetail(`<script type="application/ld+json">{"@type":"Website"}</script>`)
 	if err != ErrNoProduct {
