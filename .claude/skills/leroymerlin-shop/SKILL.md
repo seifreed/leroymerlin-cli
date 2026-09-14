@@ -86,6 +86,10 @@ Always confirm with `leroymerlin whoami`. The DataDome cookie **rotates and expi
 session goes stale: if a cart command returns the `DataDome challenged …` 403 hint, just re-run
 `leroymerlin login` to lift a fresh one — after making sure the browser still has the site open.
 
+If the user says their **browser cart looks empty** while `cart get` shows lines, the session is not
+theirs: a cookie lifted before they signed in (a guest cart), or a different account. Re-run
+`leroymerlin login` and compare `cart get` again — never argue the cart is there.
+
 **Never echo the cookie back to the user.** Feed it via `--from-browser`, the HAR or `--stdin`, never print it.
 
 ## The photo → cart workflow (the headline)
@@ -127,6 +131,10 @@ printf 'taladro percutor\nbrocas hormigón\nsilicona sanitaria blanca\ntirafondo
   with a discount/promo (use it when the user wants deals or to catch a was-price drop). Combining
   them with `--limit N` is safe: the limit counts what survives the filter, so `--cheapest --limit 3`
   is the three cheapest of the page, not the cheapest of the first three.
+- **"The cheapest" is the cheapest of what the query returned.** Search is full-text: `mesa comedor
+  blanca` matches those words, it does not filter by colour or material, so `--cheapest` ranks the
+  hits — not the catalogue. Tell the user it that way ("la más barata de las que salen con esta
+  búsqueda"), and widen the term or raise `--limit` before claiming a minimum.
 - **Prices agree across commands.** `search`, `product`, `total` and the cart all read the offer the
   storefront bills from, so do not try to reconcile a `product` price against a `search` hit — if they
   ever differ, report it rather than averaging or preferring one.
@@ -204,6 +212,12 @@ wipe items the user added himself). `--max` is a **per-line** cap, not a basket 
 > The cart backend can lag a write by a beat — if a `cart get` right after a write looks stale, re-run
 > it; it converges in a second or two. If a cart command returns the DataDome 403 hint, the cookie
 > rotated — re-run `login --from-browser` and continue.
+
+> **`no product found at …` for a URL a search just returned is throttling, not a dead product.** The
+> storefront starts answering 404 (an HTML error page) to product pages while `search` still works,
+> when the requests come back-to-back: six search+add pairs in a fast loop reproduced it, the same
+> adds one at a time all went through. Put a beat between items and retry that item once before you
+> mark it not-found — silently dropping it from the plan is the real damage.
 
 > If a cart mutation or checkout read returns HTTP 412, open `/checkout/cart` in the browser, refresh
 > the page, and retry once. Do not repeat `cart add` while the state is unresolved; verify with `cart get`

@@ -150,6 +150,10 @@ limit). A blocked line exits non-zero with `error: line … exceeds --max …` �
   user chooses a slot and pays in the browser.
 - **URL vs ref.** `product` / `cart add` take the **URL** (the full product slug); `cart set` / `brands`
   / `cart get` use the short **ref**. Take both from a search hit (`url`, `identifier`).
+- **Soft throttling looks like a 404.** Back-to-back requests (a search+add loop over a list) make
+  product pages answer HTTP 404 with an HTML error page while `search` keeps working. `cart add` and
+  `product` report `no product found at …`; pace the loop and retry the item once rather than treating
+  it as missing.
 - **Signed in for the cart.** `cart` and `checkout` refuse a cookie without the account token: it
   would address a guest cart invisible to the user. Reads do not care.
 - **DataDome.** Every request needs the browser session — reads included. The Chrome TLS fingerprint
