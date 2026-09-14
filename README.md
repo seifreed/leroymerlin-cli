@@ -117,7 +117,7 @@ The clearance **rotates and expires**, and the cart endpoints are scored more st
 | Command | Description |
 |---------|-------------|
 | `leroymerlin login` | lift the session from a browser you already use; `--from-browser chrome\|chromium\|firefox\|safari\|edge\|brave` reads just one store |
-| `leroymerlin whoami` | check the session is still being accepted |
+| `leroymerlin whoami` | check the session is still being accepted, and whether it is signed in |
 | `leroymerlin search <term...>` | full-text search — `--limit N`, `--cheapest`, `--in-stock`, `--on-offer` |
 | `leroymerlin batch [-f file]` | resolve many terms at once: preferred brand, else cheapest in-stock hit per term |
 | `leroymerlin brands <term...>` | brands selling a product type (count + cheapest), to fill `[brands]` in config |

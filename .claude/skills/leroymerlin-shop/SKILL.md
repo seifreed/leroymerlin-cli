@@ -82,7 +82,9 @@ DataDome challenges it on sight. So the user signs in at `leroymerlin.es` in the
    rejected).
 3. **`leroymerlin set-cookie '<cookie>'`** (or `--stdin`) — paste the raw `Cookie:` header manually.
 
-Always confirm with `leroymerlin whoami`. The DataDome cookie **rotates and expires**, so a cached
+Always confirm with `leroymerlin whoami` — it reports reads **and** whether the cookie is signed in
+(`--json` → `signed_in`). Check it before a shopping run: a signed-out session reads fine and fails at
+the first `cart` command. The DataDome cookie **rotates and expires**, so a cached
 session goes stale: if a cart command returns the `DataDome challenged …` 403 hint, just re-run
 `leroymerlin login` to lift a fresh one — after making sure the browser still has the site open.
 

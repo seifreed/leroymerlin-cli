@@ -112,7 +112,8 @@ SESSION (do this first — every command runs on your browser session):
   import-har --file f     lift the cookie from a DevTools HAR ("Save all as HAR
                           with sensitive data"). --file - reads stdin.
   set-cookie '<cookie>'   paste a raw Cookie header from DevTools. --stdin too.
-  whoami                  check the session is still being accepted
+  whoami                  check the session is still being accepted, and whether
+                          it is signed in
                           cart and checkout need the session to be SIGNED IN:
                           a signed-out one has its own guest cart, invisible in
                           your browser, so they refuse it.

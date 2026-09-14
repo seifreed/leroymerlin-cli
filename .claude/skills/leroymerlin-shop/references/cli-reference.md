@@ -82,7 +82,7 @@ The cart/checkout endpoints are DataDome-protected (HTTP 403 without a cookie). 
 | `leroymerlin login --from-browser <name>` | **Easiest.** Lift the cookie from a browser store: `chrome`\|`chromium`\|`firefox`\|`safari`\|`edge`\|`brave` (empty = any). Self-verifies. macOS Chrome prompts the Keychain once. Captures whichever **store** the browser is set to. |
 | `leroymerlin import-har --file <har\|->` | Extract the cookie from a DevTools HAR. Use **"Save all as HAR with sensitive data"** — the plain ⤓ export is sanitized and rejected. |
 | `leroymerlin set-cookie '<cookie>'` | Seed a raw Cookie header manually (`--stdin`). |
-| `leroymerlin whoami` | Report whether reads work and whether a cookie is cached. |
+| `leroymerlin whoami` | Report whether reads work, whether a cookie is cached, and whether it is **signed in** (`--json`: `{cookie, signed_in, reads_ok}`). A signed-out one reads fine and is refused by cart/checkout. |
 
 Every `cart …` and `checkout …` command additionally requires the cookie to carry a **signed-in
 account**. A cookie lifted from a signed-out browser reads and writes fine but addresses a guest cart

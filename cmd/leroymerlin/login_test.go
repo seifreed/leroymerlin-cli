@@ -125,3 +125,38 @@ func TestProbeReadsWrapsAFailedCheck(t *testing.T) {
 		t.Error("want a non-zero exit when the probe request fails")
 	}
 }
+
+// Reads working is not the whole answer: a cookie that lost the account still
+// reads, and whoami is where the user checks before a cart command refuses.
+func TestWhoamiReportsTheSignedInState(t *testing.T) {
+	for _, tc := range []struct {
+		name, cookie, want string
+	}{
+		{"signed in", testCookie, "signed-in cookie cached"},
+		{"guest", guestCookie, "signed out"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stubEnv(t, stubServerFor(t, cardHTML), tc.cookie)
+			out := captureStdout(t, func() {
+				if code := run([]string{"whoami"}); code != 0 {
+					t.Fatalf("exit = %d", code)
+				}
+			})
+			if !strings.Contains(out, tc.want) {
+				t.Errorf("whoami = %q, want %q", out, tc.want)
+			}
+		})
+	}
+}
+
+func TestWhoamiJSONCarriesSignedIn(t *testing.T) {
+	stubEnv(t, stubServerFor(t, cardHTML), guestCookie)
+	out := captureStdout(t, func() {
+		if code := run([]string{"whoami", "--json"}); code != 0 {
+			t.Fatalf("exit = %d", code)
+		}
+	})
+	if !strings.Contains(out, `"signed_in": false`) {
+		t.Errorf("whoami --json = %q, want signed_in false", out)
+	}
+}

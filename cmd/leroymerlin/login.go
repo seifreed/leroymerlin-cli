@@ -61,10 +61,19 @@ func cmdWhoami(args []string) error {
 	}
 	cookieState := "no session cached — run `leroymerlin login --from-browser chrome`"
 	if hasCookie {
-		cookieState = "cookie cached"
+		// Reads working is not the whole answer: cart and checkout need the cookie
+		// to carry the account, and a session that lost it looks fine until the
+		// first cart command refuses.
+		cookieState = "signed-in cookie cached"
+		if !client.CookieIsSignedIn(cl.Cookie) {
+			cookieState = "cookie cached but signed out (cart and checkout refuse it)"
+		}
 	}
 	if ok {
 		fmt.Printf("ok — reads working; %s\n", cookieState)
+		if hasCookie && !client.CookieIsSignedIn(cl.Cookie) {
+			fmt.Println("  sign in at www.leroymerlin.es, then run `leroymerlin login --from-browser chrome` again")
+		}
 		return nil
 	}
 	return fmt.Errorf("reads are being challenged; %s — try `leroymerlin login --from-browser chrome`", cookieState)
@@ -79,6 +88,10 @@ func probeReads(cf *common, cl *client.Client) (ok, emitted bool, err error) {
 	if err != nil {
 		return false, false, fmt.Errorf("could not verify reads: %w", err)
 	}
-	emitted, err = emitStructured(cf, map[string]any{"cookie": cl.Cookie != "", "reads_ok": ok})
+	emitted, err = emitStructured(cf, map[string]any{
+		"cookie":    cl.Cookie != "",
+		"signed_in": client.CookieIsSignedIn(cl.Cookie),
+		"reads_ok":  ok,
+	})
 	return ok, emitted, err
 }
