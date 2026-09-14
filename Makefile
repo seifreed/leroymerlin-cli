@@ -2,7 +2,7 @@
 
 BIN ?= leroymerlin
 
-.PHONY: build test cover fmt vet tidy check clean
+.PHONY: build test cover fmt vet tidy check release-dry clean
 
 build:
 	go build -o $(BIN) ./cmd/leroymerlin
@@ -37,6 +37,13 @@ tidy:
 check: fmt vet test build
 	@echo "ok"
 
+# Dry-run the release the way CI will build it: cross-compiled archives +
+# checksums into dist/, nothing published. Names must stay what install.sh
+# reconstructs — leroymerlin_<version>_<os>_<arch>.tar.gz — so check dist/ after.
+release-dry:
+	go run github.com/goreleaser/goreleaser/v2@v2.12.7 release --snapshot --clean --skip=publish
+	@ls dist/*.tar.gz dist/*.zip dist/checksums.txt
+
 clean:
 	rm -f $(BIN)
-	rm -rf .covdata coverage.out coverage.subproc.out
+	rm -rf .covdata coverage.out coverage.subproc.out dist

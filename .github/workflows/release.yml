@@ -12,7 +12,21 @@ permissions:
   contents: write # GoReleaser needs to create the release and upload assets.
 
 jobs:
+  # A tag push does not trigger ci.yml (that one watches main and PRs), so the
+  # gate runs here too: without it a tag publishes binaries nothing tested.
+  verify:
+    name: gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: make check
+
   goreleaser:
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

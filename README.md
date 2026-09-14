@@ -220,6 +220,36 @@ cookie = "…"                    # a session to fall back on; `login` normally 
 
 ---
 
+## Releasing
+
+Releases are cut by **pushing a tag** — nothing else is edited, the version is the tag:
+
+```bash
+make check                       # the gate the tag will run again in CI
+make release-dry                 # optional: build the real archives into dist/, publish nothing
+
+git tag -a v0.1.0 -m "v0.1.0"
+git push origin v0.1.0
+```
+
+`.github/workflows/release.yml` then runs `make check` and GoReleaser, which cross-compiles
+linux/darwin `amd64`+`arm64` and windows `amd64`, and publishes a GitHub Release with:
+
+```text
+leroymerlin_<version>_<os>_<arch>.tar.gz   (zip on windows) — binary + README + LICENSE
+checksums.txt                              — sha256 of every archive
+```
+
+`install.sh` reconstructs exactly those names and refuses to install without a matching
+checksum, so **the archive naming in `.goreleaser.yaml` is a contract with the installer**.
+The binary reports what it was built from — `leroymerlin version` prints `<version> (<commit>, <date>)`.
+
+The release notes come from the commit log (`docs:`, `test:`, `chore:` and `ci:` are filtered out).
+Nothing outside the tag needs bumping, and the workflow's only secret is the automatic
+`GITHUB_TOKEN`.
+
+---
+
 ## Contributing
 
 Contributions are welcome.
