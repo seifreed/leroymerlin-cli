@@ -90,7 +90,7 @@ the user never sees, so those commands refuse it (`… carries no signed-in acco
 when it caches one. Reads are unaffected.
 
 | `leroymerlin cart get` | Show the cart: lines (`[ref] name — qty × = line€`) + totals. `--json` for the structured cart. |
-| `leroymerlin cart add <url> [qty]` | Add a product by its **URL** (from search). Additive. `--max <eur>` per-line spending cap. Errors if the cart does not grow — a 2xx the storefront discards is not an add. |
+| `leroymerlin cart add <url> [qty]` | Add a product by its **URL** (from search). Additive. `--max <eur>` per-line spending cap. Errors if the cart does not grow — a 2xx the storefront discards is not an add. Warns on stderr when the product has 0 units in every channel (the storefront still accepts it). |
 | `leroymerlin cart set <ref> <qty>` | Set a product's absolute qty by **ref** (`0` removes). Idempotent — safe to re-run a whole plan. `--max <eur>` caps the resulting line, priced from the cart's own unit price; `0` is never over the cap. |
 | `leroymerlin cart clear` | Empty the cart, then re-read it: a line that survives its delete is an error, not a cleared cart. |
 | `leroymerlin checkout [status]` | Read-only readiness: total (items + shipping), `ready`, and the blockers. |

@@ -118,6 +118,9 @@ func (c *Client) ProductOffer(urlOrPath string) (reflm, offerID, contextCode str
 	if d, derr := parseProductDetail(html); derr == nil {
 		applyLivePrice(d, html, offerID)
 		d.URL = resolved
+		// The same page already carries the per-channel stock, and `cart add` warns
+		// on a product with none of it; parsing it here costs no extra request.
+		d.Deliveries = parseDeliveries(html)
 		detail = d
 		if reflm == "" {
 			reflm = d.SKU

@@ -42,3 +42,25 @@ func TestAvailabilityPassesThroughUnprefixedValue(t *testing.T) {
 		t.Fatalf("Availability() = %q, want InStock", got)
 	}
 }
+
+// The schema.org availability says "InStock" for a product with zero units in
+// every channel, so the channels are the only honest answer — and a page that
+// lists none says nothing at all.
+func TestProductDetailOutOfStock(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		deliveries []DeliveryOption
+		want       bool
+	}{
+		{"no channels listed says nothing", nil, false},
+		{"every channel empty", []DeliveryOption{{Stock: 0}, {Stock: 0}}, true},
+		{"one channel has units", []DeliveryOption{{Stock: 0}, {Stock: 3}}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := ProductDetail{Deliveries: tc.deliveries}
+			if got := d.OutOfStock(); got != tc.want {
+				t.Errorf("OutOfStock() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}

@@ -209,6 +209,12 @@ func cartAdd(args []string) error {
 		return err
 	}
 
+	// The storefront accepts an add for a product with no stock in any channel,
+	// so the line looks like every other one; say it before it reaches a plan.
+	if detail != nil && detail.OutOfStock() {
+		stderrLogf("%s has 0 units in every delivery channel — the storefront accepts the add, but it cannot ship yet", reflm)
+	}
+
 	sum, err := cl.AddToCart(reflm, offerID, contextCode, qty)
 	if err != nil {
 		return cleanCartErr(err)

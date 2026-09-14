@@ -47,6 +47,22 @@ type DeliveryOption struct {
 	Time   string  `json:"time"`
 }
 
+// OutOfStock reports that every delivery channel the page lists carries zero
+// units. The schema.org availability says "InStock" even then, so the channel
+// stock is the only honest answer; a page that lists no channels says nothing,
+// and this reports false rather than guessing.
+func (p ProductDetail) OutOfStock() bool {
+	if len(p.Deliveries) == 0 {
+		return false
+	}
+	for _, d := range p.Deliveries {
+		if d.Stock > 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // Price returns the first offer's tax-included price.
 func (p ProductDetail) Price() string {
 	if len(p.Offers) == 0 {

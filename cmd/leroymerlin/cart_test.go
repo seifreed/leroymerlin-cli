@@ -715,3 +715,35 @@ func TestCartSetRejectsAnInvalidCap(t *testing.T) {
 		t.Error("want a non-zero exit for an unparseable cap")
 	}
 }
+
+// The storefront accepts an add for a product with no stock anywhere, so the
+// line looks like any other: say it before it reaches a plan.
+func TestCartAddWarnsAboutAProductWithNoStock(t *testing.T) {
+	prodHTML := `<script type="application/ld+json">{"@type":"Product","name":"Taladro","sku":"83085630","offers":{"price":"219","priceCurrency":"EUR"}}</script>` +
+		`<script>{"offer_id":"deadbeefdeadbeef"}</script>` +
+		`<script>{"offer":{"available_deliveries":[{"price":0.0,"stock":0,"stockStatus":"ONSITE","time":"2 HOUR","type":"storeDelivery"}]}}</script>`
+	added := false
+	stubEnvServing(t, testCookie, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "/productos/"):
+			_, _ = w.Write([]byte(prodHTML))
+		case r.URL.Path == "/cart/services/addToCart":
+			added = true
+			w.WriteHeader(http.StatusOK)
+		default:
+			quantity := 0
+			if added {
+				quantity = 1
+			}
+			_, _ = fmt.Fprintf(w, `{"quantity":%d,"order":"o1"}`, quantity)
+		}
+	})
+	errs := captureStderr(t, func() {
+		if code := run([]string{"cart", "add", "/productos/taladro-83085630.html", "--max", "500"}); code != 0 {
+			t.Fatalf("exit = %d", code)
+		}
+	})
+	if !strings.Contains(errs, "0 units") {
+		t.Errorf("stderr = %q, want the empty stock named", errs)
+	}
+}

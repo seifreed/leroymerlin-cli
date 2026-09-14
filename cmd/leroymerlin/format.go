@@ -65,6 +65,11 @@ func detailLines(d *domain.ProductDetail) string {
 	}
 	fmt.Fprintf(&b, "  ref:          %s\n", d.SKU)
 	if price := d.Price(); price != "" {
+		// The page writes 219 euros as "219" and sixty cents as "0.6"; render from
+		// cents so every price in the CLI reads the same way.
+		if cents, err := domain.ParsePriceCents(price); err == nil {
+			price = domain.FormatCents(cents)
+		}
 		fmt.Fprintf(&b, "  precio:       %s %s\n", price, d.Currency())
 	}
 	if av := d.Availability(); av != "" {

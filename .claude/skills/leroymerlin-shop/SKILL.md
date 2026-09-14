@@ -226,6 +226,12 @@ A write the storefront accepts but discards is reported as an error, not as a su
 nothing: `cart add` requires the cart to actually grow, and `cart clear` re-reads the emptied cart. So
 trust a non-zero exit — do not "confirm" it by retrying blind.
 
+**Out of stock does not stop an add.** `add_to_cart_availability: false` in a search hit means the
+product has **0 units in every channel**, and the storefront still accepts `cart add` for it — the line
+looks exactly like any other. The CLI warns on stderr (`… has 0 units in every delivery channel`), but
+the real fix is upstream: resolve with `--in-stock`, or check `disponibilidad` with `product` before
+adding. If the user wants it anyway, say in the plan that it cannot ship yet.
+
 Run `cart get` immediately before the first add, especially after refreshing or re-importing a browser
 cookie; an existing browser cart may reappear when the session is renewed.
 
