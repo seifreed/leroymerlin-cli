@@ -83,6 +83,24 @@ func cmdProduct(args []string) error {
 	return nil
 }
 
+// reportSavedSession proves a pasted or imported cookie before saying it worked:
+// saving one is not the same as it being accepted, and the two ways that fails —
+// a stale clearance, or a cookie without the account that cart and checkout
+// refuse — both read as success until the next command.
+func reportSavedSession(cf *common, saved string) error {
+	cl := newClient()
+	ok, emitted, err := probeReads(cf, cl)
+	if err != nil || emitted {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("%s, but reads are still challenged — the clearance is stale; lift a fresh one with `leroymerlin login --from-browser chrome`", saved)
+	}
+	fmt.Printf("ok — %s, reads working\n", saved)
+	warnGuestCart(cl)
+	return nil
+}
+
 // isProductMissing reports whether err is a product page that is not there: a
 // stale or mistyped url, which reads the same to `product` and to `cart add`.
 func isProductMissing(err error) bool {
@@ -97,7 +115,7 @@ func productMissingErr(target string) error {
 // cmdImportHar lifts the browser cookie (DataDome clearance) from a DevTools HAR
 // export and caches it for challenged reads.
 func cmdImportHar(args []string) error {
-	fs := newFlagSet("import-har")
+	fs, cf := newCommonFlags("import-har")
 	file := fs.String("file", "", "path to the HAR export ('-' for stdin)")
 	parseFlags(fs, args)
 	if *file == "" {
@@ -120,14 +138,13 @@ func cmdImportHar(args []string) error {
 	if err := saveSession(client.Session{Cookie: cookie}); err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stderr, "cookie imported from HAR")
-	return nil
+	return reportSavedSession(cf, "cookie imported from HAR")
 }
 
 // cmdSetCookie seeds a raw Cookie header copied from a signed-in browser, for
 // the case where the cookie store cannot be read directly.
 func cmdSetCookie(args []string) error {
-	fs := newFlagSet("set-cookie")
+	fs, cf := newCommonFlags("set-cookie")
 	stdin := fs.Bool("stdin", false, "read the cookie from stdin")
 	parseFlags(fs, args)
 
@@ -147,6 +164,5 @@ func cmdSetCookie(args []string) error {
 	if err := saveSession(client.Session{Cookie: cookie}); err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stderr, "cookie saved")
-	return nil
+	return reportSavedSession(cf, "cookie saved")
 }

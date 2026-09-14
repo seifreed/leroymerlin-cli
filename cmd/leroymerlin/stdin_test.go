@@ -45,8 +45,9 @@ func TestTotalReadsTheBasketFromStdin(t *testing.T) {
 // import-har from stdin is the documented way to pipe a DevTools export without
 // it touching the disk.
 func TestImportHarReadsTheExportFromStdin(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("LEROYMERLIN_CONFIG_DIR", dir)
+	// The session commands prove the cookie before reporting success, so the test
+	// needs a storefront to prove it against.
+	dir := stubEnv(t, stubServerFor(t, cardHTML), "")
 	withStdin(t, harFixture)
 
 	if code := run([]string{"import-har", "--file", "-"}); code != 0 {
@@ -59,8 +60,9 @@ func TestImportHarReadsTheExportFromStdin(t *testing.T) {
 }
 
 func TestSetCookieReadsTheCookieFromStdin(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("LEROYMERLIN_CONFIG_DIR", dir)
+	// The session commands prove the cookie before reporting success, so the test
+	// needs a storefront to prove it against.
+	dir := stubEnv(t, stubServerFor(t, cardHTML), "")
 	withStdin(t, "  datadome=PIPED; lm-csrf=T\n")
 
 	if code := run([]string{"set-cookie", "--stdin"}); code != 0 {

@@ -82,6 +82,10 @@ DataDome challenges it on sight. So the user signs in at `leroymerlin.es` in the
    rejected).
 3. **`leroymerlin set-cookie '<cookie>'`** (or `--stdin`) — paste the raw `Cookie:` header manually.
 
+All three self-verify: they prove the cookie against the storefront before reporting success, and name
+one that reads but carries no account. A non-zero exit here means the cookie is stale — lift a fresh one
+rather than carrying on.
+
 Always confirm with `leroymerlin whoami` — it reports reads **and** whether the cookie is signed in
 (`--json` → `signed_in`). Check it before a shopping run: a signed-out session reads fine and fails at
 the first `cart` command. The DataDome cookie **rotates and expires**, so a cached

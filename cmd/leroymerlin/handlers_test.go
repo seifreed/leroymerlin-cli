@@ -265,8 +265,9 @@ func TestLoginRejectsUnknownBrowser(t *testing.T) {
 }
 
 func TestSetCookiePersists(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("LEROYMERLIN_CONFIG_DIR", dir)
+	// The session commands prove the cookie before reporting success, so the test
+	// needs a storefront to prove it against.
+	dir := stubEnv(t, stubServerFor(t, cardHTML), "")
 	if code := run([]string{"set-cookie", "datadome=abc; lm-csrf=def"}); code != 0 {
 		t.Fatalf("set-cookie exit = %d", code)
 	}
@@ -299,8 +300,9 @@ const harFixture = `{"log":{"entries":[{"request":{"url":"https://www.leroymerli
 // import-har is how a user hands the CLI a browser session, so the end-to-end
 // path that matters is: HAR on disk -> parsed cookie -> persisted session.
 func TestImportHarPersistsTheCookie(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("LEROYMERLIN_CONFIG_DIR", dir)
+	// The session commands prove the cookie before reporting success, so the test
+	// needs a storefront to prove it against.
+	dir := stubEnv(t, stubServerFor(t, cardHTML), "")
 	har := filepath.Join(dir, "export.har")
 	if err := os.WriteFile(har, []byte(harFixture), 0o600); err != nil {
 		t.Fatal(err)
@@ -493,8 +495,9 @@ func TestSetCookieNeedsAValue(t *testing.T) {
 }
 
 func TestSetCookiePersistsTheValue(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("LEROYMERLIN_CONFIG_DIR", dir)
+	// The session commands prove the cookie before reporting success, so the test
+	// needs a storefront to prove it against.
+	dir := stubEnv(t, stubServerFor(t, cardHTML), "")
 
 	if code := run([]string{"set-cookie", "datadome=SAVED; lm-csrf=T"}); code != 0 {
 		t.Fatalf("exit = %d", code)
@@ -1023,5 +1026,31 @@ func TestTotalRefusesToPriceARelaxedTerm(t *testing.T) {
 	})
 	if !strings.Contains(out, "no exact match") {
 		t.Errorf("output = %q, want the line reported unpriced", out)
+	}
+}
+
+// Saving a cookie is not the same as it being accepted: a stale clearance saves
+// fine and fails on the next command. set-cookie and import-har prove it the
+// way login does.
+func TestSetCookieRefusesACookieTheStorefrontRejects(t *testing.T) {
+	stubEnvServing(t, "", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	})
+	if code := run([]string{"set-cookie", "datadome=stale"}); code == 0 {
+		t.Error("want a non-zero exit when the saved cookie is still challenged")
+	}
+}
+
+// And a cookie that reads but carries no account is named, because cart and
+// checkout will refuse it.
+func TestSetCookieNamesAGuestCookie(t *testing.T) {
+	stubEnv(t, stubServerFor(t, cardHTML), "")
+	errs := captureStderr(t, func() {
+		if code := run([]string{"set-cookie", guestCookie}); code != 0 {
+			t.Fatalf("exit = %d", code)
+		}
+	})
+	if !strings.Contains(errs, "no signed-in account") {
+		t.Errorf("stderr = %q, want the guest cookie named", errs)
 	}
 }
