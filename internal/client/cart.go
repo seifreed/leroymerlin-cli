@@ -176,21 +176,30 @@ func (c *Client) AddToCart(reflm, offerID, contextCode string, qty int) (*domain
 		ContextCode:       contextCode,
 		ATCButtonLocation: "main offer",
 	}}
+	// Baseline before the write: a discarded add leaves the count unchanged, and
+	// on a cart that already holds items "unchanged" is not the same as "zero".
+	before, err := c.CartData()
+	if err != nil {
+		return nil, err
+	}
 	if err := c.postJSON(cartAddPath, body, nil); err != nil {
 		return nil, err
 	}
 	sum, err := c.CartData()
-	if err != nil || sum.Quantity > 0 {
-		return sum, err
+	if err != nil {
+		return nil, err
+	}
+	if sum.Quantity > before.Quantity {
+		return sum, nil
 	}
 	// Both cart projections can lag immediately after a write, so briefly poll the
-	// detailed cart before reporting a successful add as zero.
+	// detailed cart before reporting the add as discarded.
 	for attempt := 0; attempt < 4; attempt++ {
 		detail, derr := c.Cart()
 		if derr != nil {
 			return nil, derr
 		}
-		if detail.Quantity > 0 {
+		if detail.Quantity > before.Quantity {
 			sum.Quantity = detail.Quantity
 			if sum.Order == "" {
 				sum.Order = detail.OrderID
@@ -201,10 +210,10 @@ func (c *Client) AddToCart(reflm, offerID, contextCode string, qty int) (*domain
 			time.Sleep(250 * time.Millisecond)
 		}
 	}
-	// The storefront answered 2xx and the cart is still empty, which is what a
-	// wrong contextCode or a stale offerId looks like: the write is accepted and
-	// discarded. Reporting that as a successful add of zero items is worse than
-	// useless to anything reading the exit code.
+	// The storefront answered 2xx and the cart did not grow, which is what a wrong
+	// contextCode or a stale offerId looks like: the write is accepted and
+	// discarded. Reporting that as a successful add is worse than useless to
+	// anything reading the exit code.
 	return nil, fmt.Errorf("the storefront accepted the add but the cart did not change — "+
 		"the offer for %s may be stale; re-read the product page and retry", reflm)
 }

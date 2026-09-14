@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"net/http"
 	"os"
@@ -49,7 +50,12 @@ func cartStub(t *testing.T, price string) (added *bool) {
 			wasAdded = true
 			_, _ = w.Write([]byte(`{}`))
 		case strings.Contains(r.URL.Path, "cart-data"):
-			_, _ = w.Write([]byte(`{"quantity":1,"order":"o1"}`))
+			// The count grows only after the write, as the storefront's does.
+			quantity := 0
+			if wasAdded {
+				quantity = 1
+			}
+			_, _ = fmt.Fprintf(w, `{"quantity":%d,"order":"o1"}`, quantity)
 		default:
 			http.NotFound(w, r)
 		}

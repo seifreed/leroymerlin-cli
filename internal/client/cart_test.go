@@ -38,7 +38,11 @@ func TestAddToCartRequest(t *testing.T) {
 			_ = json.Unmarshal(b, &gotBody)
 			_, _ = w.Write([]byte(`{}`))
 		case cartDataPath:
-			_, _ = w.Write([]byte(`{"quantity":2,"order":"o1"}`))
+			quantity := 0
+			if gotBody != nil {
+				quantity = 2
+			}
+			_, _ = fmt.Fprintf(w, `{"quantity":%d,"order":"o1"}`, quantity)
 		default:
 			t.Errorf("unexpected path %q", r.URL.Path)
 		}
@@ -230,7 +234,11 @@ func TestAddToCartAppliesDefaults(t *testing.T) {
 			_, _ = w.Write([]byte(`{}`))
 			return
 		}
-		_, _ = w.Write([]byte(`{"quantity":1,"order":"o1"}`))
+		quantity := 0
+		if body != "" {
+			quantity = 1
+		}
+		_, _ = fmt.Fprintf(w, `{"quantity":%d,"order":"o1"}`, quantity)
 	})
 	if _, err := c.AddToCart("ref", "offer", "", 0); err != nil {
 		t.Fatalf("AddToCart: %v", err)
@@ -399,5 +407,28 @@ func TestProductOfferFallsBackToTheJSONBlob(t *testing.T) {
 	}
 	if reflm != "83085630" || offerID != "15cd48c7225762da" || contextCode != "058" {
 		t.Errorf("got %q/%q/%q, want the JSON fallback", reflm, offerID, contextCode)
+	}
+}
+
+// The same discarded write on a cart that is not empty: the count stays put
+// instead of staying zero, so "did it change?" has to be measured against what
+// the cart held before the write.
+func TestAddToCartGivesUpWhenANonEmptyCartDoesNotGrow(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case cartAddPath:
+			_, _ = w.Write([]byte(`{}`))
+		case cartDetailPath:
+			_, _ = w.Write([]byte(`{"orderId":"o1","offersQuantity":2,"cartVendors":[]}`))
+		default:
+			_, _ = w.Write([]byte(`{"quantity":2,"order":"o1"}`))
+		}
+	})
+	sum, err := c.AddToCart("ref", "offer", "058", 1)
+	if err == nil {
+		t.Fatalf("AddToCart reported success with %+v, want the no-op surfaced", sum)
+	}
+	if !strings.Contains(err.Error(), "cart did not change") {
+		t.Errorf("error = %v, want it to say the cart did not change", err)
 	}
 }
