@@ -535,3 +535,20 @@ func TestCartStructuredOutputFailuresAreReported(t *testing.T) {
 		})
 	}
 }
+
+// A stale product url reads the same whether it reaches `product` or
+// `cart add`: the page is gone, and dumping the storefront's 404 markup says
+// nothing the user can act on.
+func TestCartAddExplainsAMissingProductPage(t *testing.T) {
+	stubEnvServing(t, testCookie, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`<!DOCTYPE html><html lang="es-ES"><head><link rel="preload" href="/f.woff2"></head></html>`))
+	})
+	err := cmdCart([]string{"add", "/productos/taladro-83085630.html"})
+	if err == nil {
+		t.Fatal("want an error for a missing product page")
+	}
+	if !strings.Contains(err.Error(), "no product found") || strings.Contains(err.Error(), "DOCTYPE") {
+		t.Errorf("error = %v, want the advice without the markup", err)
+	}
+}

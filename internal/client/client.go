@@ -91,9 +91,20 @@ type APIError struct {
 
 // Error renders the excerpt the CLI prints, so the body — a remote error page,
 // which nothing stops from carrying escape sequences — is scrubbed here too.
-// Truncating first keeps the scrub off a body that can be megabytes long.
+// Truncating first keeps the scrub off a body that can be megabytes long. An
+// HTML body is a rendered error page whose first 300 characters are preload
+// tags, so it is named rather than quoted.
 func (e *APIError) Error() string {
-	return fmt.Sprintf("leroymerlin: HTTP %d: %s", e.Status, scrubText(truncate(e.Body, 300)))
+	body := scrubText(truncate(e.Body, 300))
+	if isHTMLBody(e.Body) {
+		body = fmt.Sprintf("(HTML error page, %d bytes)", len(e.Body))
+	}
+	return fmt.Sprintf("leroymerlin: HTTP %d: %s", e.Status, body)
+}
+
+func isHTMLBody(body string) bool {
+	head := strings.ToLower(strings.TrimSpace(body))
+	return strings.HasPrefix(head, "<!doctype html") || strings.HasPrefix(head, "<html")
 }
 
 // HTTPStatus reports the HTTP status carried by err when it is (or wraps) an

@@ -58,8 +58,8 @@ func cmdProduct(args []string) error {
 	cl := newClient()
 	d, err := cl.Product(target)
 	if err != nil {
-		if status, ok := client.HTTPStatus(err); err == client.ErrNoProduct || (ok && status == 404) {
-			return fmt.Errorf("no product found at %s — check the url from `leroymerlin search`", target)
+		if isProductMissing(err) {
+			return productMissingErr(target)
 		}
 		return err
 	}
@@ -69,6 +69,17 @@ func cmdProduct(args []string) error {
 	}
 	fmt.Print(detailLines(d))
 	return nil
+}
+
+// isProductMissing reports whether err is a product page that is not there: a
+// stale or mistyped url, which reads the same to `product` and to `cart add`.
+func isProductMissing(err error) bool {
+	status, ok := client.HTTPStatus(err)
+	return err == client.ErrNoProduct || (ok && status == 404)
+}
+
+func productMissingErr(target string) error {
+	return fmt.Errorf("no product found at %s — check the url from `leroymerlin search`", target)
 }
 
 // cmdImportHar lifts the browser cookie (DataDome clearance) from a DevTools HAR

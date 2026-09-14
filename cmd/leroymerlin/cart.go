@@ -177,6 +177,9 @@ func cartAdd(args []string) error {
 
 	reflm, offerID, contextCode, detail, err := cl.ProductOffer(target)
 	if err != nil {
+		if isProductMissing(err) {
+			return productMissingErr(target)
+		}
 		return cleanCartErr(err)
 	}
 

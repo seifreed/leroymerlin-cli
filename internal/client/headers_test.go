@@ -232,3 +232,20 @@ func TestAPIErrorExcerptCarriesNoControlCharacters(t *testing.T) {
 		t.Errorf("APIError.Error() = %q, want the readable text kept", got)
 	}
 }
+
+// A storefront error page is 40 KB of markup whose first 300 characters are
+// preload tags, so quoting an excerpt of it tells the user nothing.
+func TestAPIErrorNamesAnHTMLBodyInsteadOfQuotingIt(t *testing.T) {
+	e := &APIError{Status: 404, Body: `<!DOCTYPE html><html lang="es-ES"><head><link rel="preload" href="/font.woff2"></head></html>`}
+	got := e.Error()
+	if strings.Contains(got, "<link") || strings.Contains(got, "DOCTYPE") {
+		t.Errorf("APIError.Error() = %q, want the markup kept out", got)
+	}
+	if !strings.Contains(got, "HTTP 404") || !strings.Contains(got, "HTML error page") {
+		t.Errorf("APIError.Error() = %q, want the status and a named body", got)
+	}
+	plain := &APIError{Status: 412, Body: `{"message":"cart is stale"}`}
+	if !strings.Contains(plain.Error(), "cart is stale") {
+		t.Errorf("APIError.Error() = %q, want a non-HTML body quoted", plain.Error())
+	}
+}
