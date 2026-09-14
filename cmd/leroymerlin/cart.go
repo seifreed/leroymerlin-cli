@@ -209,6 +209,14 @@ func cartAdd(args []string) error {
 		return err
 	}
 
+	// A listing page — a category, a landing page — carries add-to-cart blocks
+	// too, and they belong to whichever product happens to be first on it. Without
+	// a parsed product detail there is nothing to say the url names the product
+	// the user meant, and nothing to price the spending cap from either.
+	if detail == nil {
+		return fmt.Errorf("%s is not a product page — its add-to-cart block belongs to whatever product is listed first; pass a product url from `leroymerlin search`", target)
+	}
+
 	// The storefront accepts an add for a product with no stock in any channel,
 	// so the line looks like every other one; say it before it reaches a plan.
 	if detail != nil && detail.OutOfStock() {

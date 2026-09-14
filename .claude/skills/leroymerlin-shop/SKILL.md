@@ -222,6 +222,9 @@ marketplace seller) so the user can veto it. Edit and re-total until they're hap
 
 Add each confirmed line with a spending cap. `cart add <url> [qty]` takes the product **URL** (from the
 search/`batch` `url` field) and is additive; the URL is required because the site has no short add-by-id.
+It must be a **product** url: a category or landing page carries add-to-cart blocks belonging to
+whatever is listed first, and `cart add` refuses those (`… is not a product page`) rather than adding a
+product nobody chose.
 A write the storefront accepts but discards is reported as an error, not as a successful add of
 nothing: `cart add` requires the cart to actually grow, and `cart clear` re-reads the emptied cart. So
 trust a non-zero exit — do not "confirm" it by retrying blind.

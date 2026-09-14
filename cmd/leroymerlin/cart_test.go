@@ -747,3 +747,29 @@ func TestCartAddWarnsAboutAProductWithNoStock(t *testing.T) {
 		t.Errorf("stderr = %q, want the empty stock named", errs)
 	}
 }
+
+// A category page carries add-to-cart blocks too, and they belong to whichever
+// product is listed first: adding from one puts an arbitrary product in the
+// cart, with no detail to price the spending cap from.
+func TestCartAddRefusesAListingPage(t *testing.T) {
+	posted := false
+	stubEnvServing(t, testCookie, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/cart/services/addToCart" {
+			posted = true
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		// A listing: add-to-cart fields, no product detail.
+		_, _ = w.Write([]byte(`<div class="js-atc-list__item">` +
+			`<input type="hidden" name="reflm" value="64292396"/>` +
+			`<input type="hidden" name="offerId" value="deadbeef"/>` +
+			`<input type="hidden" name="contextCode" value="033"/></div>`))
+	})
+	err := cmdCart([]string{"add", "/productos/banos/"})
+	if err == nil || !strings.Contains(err.Error(), "not a product page") {
+		t.Fatalf("error = %v, want the listing page refused", err)
+	}
+	if posted {
+		t.Error("nothing may be added from a listing page")
+	}
+}
