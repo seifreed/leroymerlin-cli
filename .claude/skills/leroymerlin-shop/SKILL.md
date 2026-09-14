@@ -286,7 +286,10 @@ All three are **read-only**. `checkout` reports the cart total and the blockers:
   --from-browser`), the cart is linked to the account, so the only blocker is usually **picking a
   delivery slot** (`needs appointment date`). Surface the options with `checkout slots` — you can tell
   the user "recogida en tienda gratis hoy 18:30, o envío a domicilio 3,90 € el 2-jul" — but the final
-  slot choice + payment happen in the browser.
+  slot choice + payment happen in the browser. **A cart with a marketplace line ships in several
+  parcels**, one per vendor, each with its own slot and its own ★: `checkout slots` heads each block
+  with the shipper's name (and `--json` carries `vendor`), so summarise it as "LM: recogida hoy;
+  HOGARCONECTADO: envío el 21", never as one delivery.
 - Blockers about the **account** (`needs an account (log in)`, `needs city`, …) mean the cart is not
   linked to anyone — with `checkout` refusing signed-out sessions, that is a stale cookie: re-run
   `leroymerlin login`.

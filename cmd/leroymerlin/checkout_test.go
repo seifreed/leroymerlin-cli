@@ -524,3 +524,42 @@ func TestCartSetCapFromEnvAndZeroAlwaysRemoves(t *testing.T) {
 		t.Errorf("qty 0 should DELETE, got %v", *deletes)
 	}
 }
+
+// A cart with a marketplace line ships in several parcels, each with its own
+// chosen slot: two ★ in one flat list read as one choice made twice.
+func TestCheckoutSlotsGroupsByVendor(t *testing.T) {
+	multiVendorJSON := `{
+	  "addresses": {},
+	  "deliveryVendors": [
+	    {"name":"Leroy Merlin","deliveryVendorDeliveryGroups":[{"deliveryVendorServiceLevels":[
+	      {"mode":"PICKUP_IN_STORE","labelCode":"PICKUP_EXP","amount":0,"selected":true,"appointmentDate":"2026-07-01T18:30:00+02:00"}]}]},
+	    {"name":"HOGARCONECTADO","deliveryVendorDeliveryGroups":[{"deliveryVendorServiceLevels":[
+	      {"mode":"HOME_DELIVERY","labelCode":"HOME_STD","amount":0,"selected":true,"appointmentDate":"2026-07-05T06:00:00+02:00"}]}]}
+	  ]}`
+	stubEnvServing(t, testCookie, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/checkout/backend/cart" {
+			_, _ = w.Write([]byte(detailCartJSON))
+			return
+		}
+		_, _ = w.Write([]byte(multiVendorJSON))
+	})
+
+	out := captureStdout(t, func() {
+		if code := run([]string{"checkout", "slots"}); code != 0 {
+			t.Fatalf("exit = %d", code)
+		}
+	})
+	if !strings.Contains(out, "Leroy Merlin:") || !strings.Contains(out, "HOGARCONECTADO:") {
+		t.Errorf("output = %q, want a heading per shipper", out)
+	}
+	// One vendor alone keeps the flat list.
+	shippingStub(t)
+	flat := captureStdout(t, func() {
+		if code := run([]string{"checkout", "slots"}); code != 0 {
+			t.Fatalf("exit = %d", code)
+		}
+	})
+	if strings.Contains(flat, ":\n") {
+		t.Errorf("single-vendor output = %q, want no heading", flat)
+	}
+}

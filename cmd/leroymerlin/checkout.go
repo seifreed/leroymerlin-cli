@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/seifreed/leroymerlin-cli/internal/application"
+	"github.com/seifreed/leroymerlin-cli/internal/domain"
 )
 
 // cmdCheckout reports checkout readiness, or (with a subcommand) the saved
@@ -147,7 +148,16 @@ func checkoutSlots(args []string) error {
 		fmt.Println("no delivery slots offered (empty cart, or none available right now)")
 		return nil
 	}
+	// A cart with a marketplace line ships in several parcels, each choosing its
+	// own slot, so the ★ appears once per vendor. Heading them keeps that from
+	// reading as one choice made twice.
+	vendor := ""
+	multi := severalVendors(view.Slots)
 	for _, s := range view.Slots {
+		if multi && s.Vendor != vendor {
+			vendor = s.Vendor
+			fmt.Printf("%s:\n", vendor)
+		}
 		mark := "  "
 		if s.Selected {
 			mark = "★ "
@@ -156,9 +166,28 @@ func checkoutSlots(args []string) error {
 		if s.Amount > 0 {
 			cost = eur(s.Amount)
 		}
-		fmt.Printf("%s%-28s %s  %s\n", mark, strings.ToLower(strings.ReplaceAll(s.Label, "_", " ")), shortDate(s.Date), cost)
+		indent := ""
+		if multi {
+			indent = "  "
+		}
+		fmt.Printf("%s%s%-28s %s  %s\n", indent, mark, strings.ToLower(strings.ReplaceAll(s.Label, "_", " ")), shortDate(s.Date), cost)
 	}
 	return nil
+}
+
+// severalVendors reports whether the slots come from more than one shipper.
+func severalVendors(slots []domain.DeliverySlot) bool {
+	first := ""
+	for _, s := range slots {
+		if first == "" {
+			first = s.Vendor
+			continue
+		}
+		if s.Vendor != first {
+			return true
+		}
+	}
+	return false
 }
 
 // loadShipping fetches the checkout shipping page for a view that needs it:

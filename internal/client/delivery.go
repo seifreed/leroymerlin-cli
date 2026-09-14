@@ -12,6 +12,7 @@ const shippingPath = "/checkout/backend/shipping"
 type rawShipping struct {
 	Addresses       map[string]map[string]any `json:"addresses"`
 	DeliveryVendors []struct {
+		Name                         string `json:"name"`
 		DeliveryVendorDeliveryGroups []struct {
 			DeliveryVendorServiceLevels []struct {
 				Mode             string  `json:"mode"`
@@ -44,8 +45,8 @@ func (c *Client) Shipping() (*domain.ShippingInfo, error) {
 	// option arrives twice — once selected, once not — and listing both reads as
 	// two identical choices, one of them inexplicably unmarked.
 	type option struct {
-		mode, label, date string
-		amount            float64
+		vendor, mode, label, date string
+		amount                    float64
 	}
 	at := map[option]int{}
 	for _, v := range rs.DeliveryVendors {
@@ -57,9 +58,10 @@ func (c *Client) Shipping() (*domain.ShippingInfo, error) {
 					Label:    scrubText(sl.LabelCode),
 					Amount:   sl.Amount,
 					Date:     scrubText(date),
+					Vendor:   scrubText(v.Name),
 					Selected: sl.Selected,
 				}
-				key := option{slot.Mode, slot.Label, slot.Date, slot.Amount}
+				key := option{slot.Vendor, slot.Mode, slot.Label, slot.Date, slot.Amount}
 				if i, ok := at[key]; ok {
 					info.Slots[i].Selected = info.Slots[i].Selected || slot.Selected
 					continue

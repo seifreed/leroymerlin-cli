@@ -94,7 +94,7 @@ when it caches one. Reads are unaffected.
 | `leroymerlin cart set <ref> <qty>` | Set a product's absolute qty by **ref** (`0` removes). Idempotent — safe to re-run a whole plan. `--max <eur>` caps the resulting line, priced from the cart's own unit price; `0` is never over the cap. |
 | `leroymerlin cart clear` | Empty the cart, then re-read it: a line that survives its delete is an error, not a cleared cart. |
 | `leroymerlin checkout [status]` | Read-only readiness: total (items + shipping), `ready`, and the blockers. |
-| `leroymerlin checkout slots` | Delivery/pickup options for the cart: `mode`, `date`, `amount` (★ = selected). |
+| `leroymerlin checkout slots` | Delivery/pickup options for the cart: `mode`, `date`, `amount`, `vendor` (★ = selected). One block per shipper — a marketplace line ships separately, so each vendor has its own selected slot. |
 | `leroymerlin checkout addresses` | The order's addresses by role (delivery / invoice / installation / relay). |
 
 ### Cart shape (`cart get --json`)
