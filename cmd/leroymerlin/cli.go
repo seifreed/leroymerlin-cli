@@ -90,6 +90,17 @@ func loadSession(cl *client.Client, cfg config.Config) {
 func warnWithoutSession(cl *client.Client) {
 	if cl.Cookie == "" {
 		stderrLogf("no cookie cached — the cart is tied to your browser session; run `leroymerlin login --from-browser chrome` first")
+		return
+	}
+	warnGuestCart(cl)
+}
+
+// warnGuestCart names the cart the user is actually operating on. A cookie
+// lifted from a signed-out browser works, so nothing fails — the items just
+// land in a guest cart that the account's own cart page never shows.
+func warnGuestCart(cl *client.Client) {
+	if !client.CookieIsSignedIn(cl.Cookie) {
+		stderrLogf("guest cart: the cached cookie carries no signed-in account, so these items will not appear in your account's cart — sign in at www.leroymerlin.es, then run `leroymerlin login --from-browser chrome` again")
 	}
 }
 
@@ -100,6 +111,7 @@ func requireSession(operation string) (*client.Client, error) {
 	if cl.Cookie == "" {
 		return nil, fmt.Errorf("%s need your browser session — run `leroymerlin login --from-browser chrome` (or import-har / set-cookie) first", operation)
 	}
+	warnGuestCart(cl)
 	return cl, nil
 }
 

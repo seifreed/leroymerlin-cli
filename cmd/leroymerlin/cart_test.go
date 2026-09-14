@@ -552,3 +552,31 @@ func TestCartAddExplainsAMissingProductPage(t *testing.T) {
 		t.Errorf("error = %v, want the advice without the markup", err)
 	}
 }
+
+// A cookie lifted from a signed-out browser reads and writes fine, so nothing
+// fails — the items land in a guest cart the account's own cart page never
+// shows. Saying so is the difference between a working command and a user
+// staring at an empty cart in their browser.
+func TestCartWarnsWhenTheSessionIsAGuestCart(t *testing.T) {
+	for _, tc := range []struct {
+		name, cookie string
+		want         bool
+	}{
+		{"guest", "datadome=DD; lm-csrf=TOK", true},
+		{"signed in", "datadome=DD; lm-csrf=TOK; idToken.jwt=JWT", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stubEnvServing(t, tc.cookie, func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte(`{"orderId":"o1","offersQuantity":0,"cartVendors":[]}`))
+			})
+			errs := captureStderr(t, func() {
+				if code := run([]string{"cart", "get"}); code != 0 {
+					t.Fatalf("exit = %d", code)
+				}
+			})
+			if got := strings.Contains(errs, "guest cart"); got != tc.want {
+				t.Errorf("stderr = %q, want guest-cart warning = %v", errs, tc.want)
+			}
+		})
+	}
+}

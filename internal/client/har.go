@@ -35,6 +35,14 @@ func CookieLooksUseful(v string) bool {
 	return strings.Contains(strings.ToLower(v), "datadome=")
 }
 
+// CookieIsSignedIn reports whether a Cookie header carries the account token the
+// storefront sets when a user signs in. A cookie lifted from a signed-out
+// browser still reads and still writes, but its cart is a guest cart the
+// account — and so the user's own browser, once signed in — never shows.
+func CookieIsSignedIn(v string) bool {
+	return strings.Contains(strings.ToLower(v), "idtoken.jwt=")
+}
+
 // ParseHAR scans a HAR export (DevTools → Network → "Save all as HAR with
 // sensitive data") for the freshest leroymerlin.es request carrying a Cookie
 // header with the DataDome clearance, and returns that Cookie. Only request

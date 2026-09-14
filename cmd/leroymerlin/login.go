@@ -43,6 +43,7 @@ func cmdLogin(args []string) error {
 		return fmt.Errorf("cookie saved but reads are still challenged — sign in at www.leroymerlin.es in that browser, load a page, then retry")
 	}
 	fmt.Println("ok — cookie lifted from browser, reads working")
+	warnGuestCart(cl)
 	return nil
 }
 
