@@ -7,7 +7,8 @@ when an agent parses the output).
 
 ## Read commands
 
-All of them need the session (see `login --from-browser`): DataDome returns 403 without one.
+All of them need the session (see `login --from-browser`): DataDome returns 403 without one. Cart and
+checkout need it **signed in** on top of that — see the note under Session commands.
 
 | Command | What it does |
 |---|---|
@@ -82,10 +83,16 @@ The cart/checkout endpoints are DataDome-protected (HTTP 403 without a cookie). 
 | `leroymerlin import-har --file <har\|->` | Extract the cookie from a DevTools HAR. Use **"Save all as HAR with sensitive data"** — the plain ⤓ export is sanitized and rejected. |
 | `leroymerlin set-cookie '<cookie>'` | Seed a raw Cookie header manually (`--stdin`). |
 | `leroymerlin whoami` | Report whether reads work and whether a cookie is cached. |
+
+Every `cart …` and `checkout …` command additionally requires the cookie to carry a **signed-in
+account**. A cookie lifted from a signed-out browser reads and writes fine but addresses a guest cart
+the user never sees, so those commands refuse it (`… carries no signed-in account`) and `login` says so
+when it caches one. Reads are unaffected.
+
 | `leroymerlin cart get` | Show the cart: lines (`[ref] name — qty × = line€`) + totals. `--json` for the structured cart. |
-| `leroymerlin cart add <url> [qty]` | Add a product by its **URL** (from search). Additive. `--max <eur>` per-line spending cap. |
+| `leroymerlin cart add <url> [qty]` | Add a product by its **URL** (from search). Additive. `--max <eur>` per-line spending cap. Errors if the cart does not grow — a 2xx the storefront discards is not an add. |
 | `leroymerlin cart set <ref> <qty>` | Set a product's absolute qty by **ref** (`0` removes). Idempotent — safe to re-run a whole plan. |
-| `leroymerlin cart clear` | Empty the cart. |
+| `leroymerlin cart clear` | Empty the cart, then re-read it: a line that survives its delete is an error, not a cleared cart. |
 | `leroymerlin checkout [status]` | Read-only readiness: total (items + shipping), `ready`, and the blockers. |
 | `leroymerlin checkout slots` | Delivery/pickup options for the cart: `mode`, `date`, `amount` (★ = selected). |
 | `leroymerlin checkout addresses` | The order's addresses by role (delivery / invoice / installation / relay). |
@@ -126,9 +133,9 @@ The cart/checkout endpoints are DataDome-protected (HTTP 403 without a cookie). 
 { "deliveryAddress": { "firstName":"…", "lastName":"…", "line1":"…", "postalCode":"08001", "city":"…", "province":"…" } }
 ```
 
-`ready` is `true` only when nothing blocks. A **logged-in cart** typically blocks only on the delivery
-slot (`SIMULATION_NEEDS_APPOINTMENT_DATE`); a **guest cart** also blocks on account/address
-(`ORDER_NEED_TO_BE_LINKED_TO_A_CUSTOMER`, `SIMULATION_NEEDS_*`). Either way the user finishes the slot
+`ready` is `true` only when nothing blocks. The cart is always the account's, so it typically blocks
+only on the delivery slot (`SIMULATION_NEEDS_APPOINTMENT_DATE`); an account/address blocker
+(`ORDER_NEED_TO_BE_LINKED_TO_A_CUSTOMER`, `SIMULATION_NEEDS_*`) means a stale cookie — re-lift it. Either way the user finishes the slot
 choice + payment in the browser.
 
 ## Spending guard
@@ -143,6 +150,8 @@ limit). A blocked line exits non-zero with `error: line … exceeds --max …` �
   user chooses a slot and pays in the browser.
 - **URL vs ref.** `product` / `cart add` take the **URL** (the full product slug); `cart set` / `brands`
   / `cart get` use the short **ref**. Take both from a search hit (`url`, `identifier`).
+- **Signed in for the cart.** `cart` and `checkout` refuse a cookie without the account token: it
+  would address a guest cart invisible to the user. Reads do not care.
 - **DataDome.** Every request needs the browser session — reads included. The Chrome TLS fingerprint
   keeps the CLI off the JS-challenge path but does not stand in for a cookie, and the cookie **rotates**:
   re-lift it with `login --from-browser` whenever a 403 hint appears.

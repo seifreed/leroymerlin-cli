@@ -61,6 +61,13 @@ There is no account login to automate — the cookie is the DataDome clearance p
 session. That session is also what makes the answers *theirs*: prices, stock, delivery options and the
 cart all follow the store the signed-in user has selected.
 
+**Signed in, not just recognised.** A cookie lifted from a browser that was *not* signed in still reads,
+but the cart it addresses is a **guest cart**: items go in, the storefront answers `2xx`, and the user's
+own cart page stays empty. So `cart` and `checkout` refuse a session without the account and say
+`… carries no signed-in account`; the fix is the user signing in at `leroymerlin.es` and re-running
+`leroymerlin login`. `search`, `product`, `batch` and the other reads keep working meanwhile. Never
+present a guest cart as the user's.
+
 **Requirement, not a fallback: the session comes from a browser the user already uses and is signed in
 at.** The CLI never drives a browser of its own — a fresh profile has no history with the site and
 DataDome challenges it on sight. So the user signs in at `leroymerlin.es` in their everyday browser
@@ -177,6 +184,10 @@ marketplace seller) so the user can veto it. Edit and re-total until they're hap
 
 Add each confirmed line with a spending cap. `cart add <url> [qty]` takes the product **URL** (from the
 search/`batch` `url` field) and is additive; the URL is required because the site has no short add-by-id.
+A write the storefront accepts but discards is reported as an error, not as a successful add of
+nothing: `cart add` requires the cart to actually grow, and `cart clear` re-reads the emptied cart. So
+trust a non-zero exit — do not "confirm" it by retrying blind.
+
 Run `cart get` immediately before the first add, especially after refreshing or re-importing a browser
 cookie; an existing browser cart may reappear when the session is renewed.
 
@@ -213,8 +224,9 @@ All three are **read-only**. `checkout` reports the cart total and the blockers:
   delivery slot** (`needs appointment date`). Surface the options with `checkout slots` — you can tell
   the user "recogida en tienda gratis hoy 18:30, o envío a domicilio 3,90 € el 2-jul" — but the final
   slot choice + payment happen in the browser.
-- A **guest cart** (no cookie) additionally blocks on account/address (`needs an account (log in)`,
-  `needs city`, …).
+- Blockers about the **account** (`needs an account (log in)`, `needs city`, …) mean the cart is not
+  linked to anyone — with `checkout` refusing signed-out sessions, that is a stale cookie: re-run
+  `leroymerlin login`.
 
 The CLI can't book delivery or pay. Tell the user the cart is ready, summarise the delivery options and
 the address it would ship to (`checkout addresses`), and point them to the web to choose a slot and pay.
