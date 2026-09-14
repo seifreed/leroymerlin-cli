@@ -251,11 +251,11 @@ quantity — `0` is never over it. `--max` is a **per-line** cap, not a basket t
 > it; it converges in a second or two. If a cart command returns the DataDome 403 hint, the cookie
 > rotated — re-run `login --from-browser` and continue.
 
-> **`no product found at …` for a URL a search just returned is throttling, not a dead product.** The
-> storefront starts answering 404 (an HTML error page) to product pages while `search` still works,
-> when the requests come back-to-back: six search+add pairs in a fast loop reproduced it, the same
-> adds one at a time all went through. Put a beat between items and retry that item once before you
-> mark it not-found — silently dropping it from the plan is the real damage.
+> **`no product found at …` for a URL a search just returned is transient, not a dead product.** Seen
+> live: six search+add pairs in a row all failed with a 404 (an HTML error page) on the product page
+> while `search` kept working; the same adds one at a time went through, and the identical loop did
+> not fail again later. So retry the item once — and pace the loop — before marking it not-found.
+> Silently dropping it from the plan is the real damage.
 
 > If a cart mutation or checkout read returns HTTP 412, open `/checkout/cart` in the browser, refresh
 > the page, and retry once. Do not repeat `cart add` while the state is unresolved; verify with `cart get`
