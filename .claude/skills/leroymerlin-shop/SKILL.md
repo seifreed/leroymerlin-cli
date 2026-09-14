@@ -135,7 +135,9 @@ printf 'taladro percutor\nbrocas hormigón\nsilicona sanitaria blanca\ntirafondo
   `search "broca hormigón 8mm"`, `search "grifo cocina monomando cromo"`. `--limit` above one page
   auto-paginates, so `--limit 100` casts a wider net when the first page misses the right variant.
 - `--cheapest` ranks by price; `--in-stock` keeps only buyable items; `--on-offer` keeps only items
-  with a discount/promo (use it when the user wants deals or to catch a was-price drop). Combining
+  with a discount/promo (use it when the user wants deals or to catch a was-price drop). In `batch`,
+  a term with no discounted product comes back marked `(sin producto en oferta)` / `"noOffer": true`
+  rather than vanishing — price it at full price or leave it out, but say which. Combining
   them with `--limit N` is safe: the limit counts what survives the filter, so `--cheapest --limit 3`
   is the three cheapest of the page, not the cheapest of the first three.
 - **"The cheapest" is the cheapest of what the query returned.** Search is full-text: `mesa comedor

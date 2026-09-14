@@ -29,18 +29,18 @@ func TestResolveBatchAppliesPreferencesAndTracksMissing(t *testing.T) {
 
 // --on-offer drops a term whose best product is not discounted, rather than
 // listing it without an offer label.
-func TestResolveBatchDropsTermsWithoutAnOffer(t *testing.T) {
+func TestResolveBatchMarksTermsWithoutAnOffer(t *testing.T) {
 	discounted := 30.0
 	fake := &fakeCatalog{products: []domain.Product{
 		{Identifier: "plain", Brand: "Bosch", Offer: domain.Offer{UnitPriceATI: 10, AddToCart: true}},
 	}}
 
 	hits, missing := ResolveBatch(fake, []string{"taladro"}, domain.BrandPreferences{}, nil, false, true)
-	if len(hits) != 0 {
-		t.Fatalf("hits = %+v, want the un-discounted term dropped", hits)
+	if len(hits) != 1 || hits[0].Product != nil || !hits[0].NoOffer {
+		t.Fatalf("hits = %+v, want the term kept and marked as having no offer", hits)
 	}
 	if missing != 0 {
-		t.Errorf("missing = %d; a dropped term is not a missing one", missing)
+		t.Errorf("missing = %d; a filtered term is not a missing one", missing)
 	}
 
 	fake.products[0].Offer.InitialPrice = &discounted

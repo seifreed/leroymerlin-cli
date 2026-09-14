@@ -140,25 +140,19 @@ func TestBatchHuman(t *testing.T) {
 	}
 }
 
-// --on-offer used to leave the command silent when nothing qualified, where
-// search says so. It also now narrows the candidates before choosing, so a term
-// resolves to its discounted product rather than being dropped because the
-// cheapest one happened to carry no offer.
-func TestBatchOnOfferSaysSoWhenNothingQualifies(t *testing.T) {
+// --on-offer narrows the candidates before choosing, so a term resolves to its
+// discounted product rather than to nothing because the cheapest hit happened
+// to carry no offer. A term that really has none stays on the list, marked: it
+// is a line the caller asked about, and dropping it loses it from their plan.
+func TestBatchOnOfferKeepsATermWithNoOffer(t *testing.T) {
 	withStubServer(t, cardHTML) // one product, no discount and no promo
-	var out string
-	stderr := captureStderr(t, func() {
-		out = captureStdout(t, func() {
-			if code := run([]string{"batch", "--on-offer", "taladro"}); code != 0 {
-				t.Errorf("exit = %d", code)
-			}
-		})
+	out := captureStdout(t, func() {
+		if code := run([]string{"batch", "--on-offer", "taladro"}); code != 0 {
+			t.Errorf("exit = %d", code)
+		}
 	})
-	if strings.TrimSpace(out) != "" {
-		t.Errorf("stdout should stay empty for machine use:\n%s", out)
-	}
-	if !strings.Contains(stderr, "no term has a product on offer") {
-		t.Errorf("stderr missing the explanation:\n%s", stderr)
+	if !strings.Contains(out, "(sin producto en oferta)") {
+		t.Errorf("output = %q, want the term kept and marked", out)
 	}
 }
 

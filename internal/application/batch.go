@@ -12,6 +12,10 @@ type BatchHit struct {
 	// Relaxed marks a term the storefront could not match: it widened the query
 	// and answered with something else, so this hit is a suggestion, not a find.
 	Relaxed bool `json:"relaxed,omitempty"`
+	// NoOffer marks a term that has products but none on offer, under
+	// --on-offer. It is not a missing term — the filter excluded it — but it is
+	// still a line of the caller's list, and dropping it silently loses it.
+	NoOffer bool `json:"noOffer,omitempty"`
 }
 
 // ResolveBatch searches and resolves each term using the supplied brand policy.
@@ -32,6 +36,10 @@ func ResolveBatch(reader CatalogReader, terms []string, prefs domain.BrandPrefer
 		if onOfferOnly {
 			products = domain.FilterOnOffer(products)
 			if len(products) == 0 {
+				// A term whose hits carry no discount is still a term the caller
+				// asked about: the filter excluded it, which is not the same as it
+				// being missing, and not the same as it never having been asked.
+				hits = append(hits, BatchHit{Term: term, NoOffer: true})
 				continue
 			}
 		}

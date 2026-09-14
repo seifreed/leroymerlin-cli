@@ -39,10 +39,6 @@ func cmdBatch(args []string) error {
 	if done, err := emitStructured(cf, out); done {
 		return err
 	}
-	if len(out) == 0 {
-		fmt.Fprintln(os.Stderr, "no term has a product on offer")
-		return nil
-	}
 	w, relaxed := 0, 0
 	for _, h := range out {
 		if len(h.Term) > w {
@@ -51,7 +47,11 @@ func cmdBatch(args []string) error {
 	}
 	for _, h := range out {
 		if h.Product == nil {
-			fmt.Printf("• %-*s → (sin resultados)\n", w, h.Term)
+			label := "(sin resultados)"
+			if h.NoOffer {
+				label = "(sin producto en oferta)"
+			}
+			fmt.Printf("• %-*s → %s\n", w, h.Term, label)
 			continue
 		}
 		line := productLine(*h.Product)
