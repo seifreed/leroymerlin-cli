@@ -112,6 +112,8 @@ The clearance **rotates and expires**, and the cart endpoints are scored more st
 
 **Signed in, not just recognised.** A cookie lifted from a browser that was *not* signed in still reads, but its cart is a guest cart: items land in it, the storefront answers `2xx`, and your own cart page stays empty. So `cart` and `checkout` refuse a session without an account and tell you to sign in and run `login` again; `search`, `product`, `batch` and the rest keep working.
 
+**The page's structured data lags — twice.** Its schema.org block advertised 13.99€ for a drill the cart charged 14.95€ for, and says `OutOfStock` for a product with 119 units in store. So prices come from the offer the add-to-cart form names, and availability from the per-channel stock; the JSON-LD is only the fallback.
+
 **A search never comes back empty.** When the storefront has no match it widens the query and answers with something else, so a term it does not stock returns a confident, unrelated product. The CLI reads the page's own verdict: `search` and `brands` warn on stderr (`no exact match for …`), `batch` marks the line `⚠ sin coincidencia exacta` and `total` refuses to price it rather than putting a wallpaper roll in your basket total.
 
 ### Commands
@@ -125,14 +127,14 @@ The clearance **rotates and expires**, and the cart endpoints are scored more st
 | `leroymerlin brands <term...>` | brands selling a product type (count + cheapest), to fill `[brands]` in config |
 | `leroymerlin total [-f file]` | deterministic basket total from `<url\|term> [qty]` lines, summed in integer cents |
 | `leroymerlin categories [<slug>]` | top-level sections; with a slug, its products (`--limit`, `--cheapest`) or children (`--subs`) |
-| `leroymerlin product <url\|path>` | product detail: price, brand, rating, specs, per-channel stock |
+| `leroymerlin product <url\|path>` | product detail: price, seller, brand, rating, specs, per-channel stock |
 | `leroymerlin cart get` | show the cart — lines, quantities, totals |
-| `leroymerlin cart add <url> [qty]` | add a product (`--max <eur>` spending guard) |
+| `leroymerlin cart add <url> [qty]` | add a product (`--max <eur>` spending guard); refuses a non-product url, and warns when the product has no stock |
 | `leroymerlin cart set <ref> <qty>` | set an absolute quantity (0 removes the line) |
 | `leroymerlin cart clear` | empty the cart |
 | `leroymerlin checkout [status]` | total + whether checkout is blocked; read-only, never pays |
 | `leroymerlin checkout addresses` | saved delivery and invoice addresses |
-| `leroymerlin checkout slots` | delivery/pickup options with date and cost (★ = selected) |
+| `leroymerlin checkout slots` | delivery/pickup options with date and cost, one block per shipper (★ = selected) |
 | `leroymerlin import-har --file f` | lift the cookie from a DevTools HAR ("Save all as HAR with sensitive data") |
 | `leroymerlin set-cookie '<cookie>'` | paste a raw `Cookie` header; `--stdin` supported |
 | `leroymerlin version` / `help` | — |
