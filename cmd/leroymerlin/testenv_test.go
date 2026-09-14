@@ -26,7 +26,12 @@ func stubEnv(t *testing.T, srvURL, cookie string) string {
 	return dir
 }
 
-const testCookie = `datadome=DD; lm-csrf=T`
+// testCookie is a signed-in session: cart and checkout refuse anything else,
+// so the account token belongs in the default fixture.
+const testCookie = `datadome=DD; lm-csrf=T; idToken.jwt=T`
+
+// guestCookie is the same session lifted from a browser that was not signed in.
+const guestCookie = `datadome=DD; lm-csrf=T`
 
 // stubEnvServing points the CLI at a stub storefront serving h, with a config dir
 // isolated from the real ~/.leroymerlin seeded with cookie, and returns that dir.

@@ -732,7 +732,8 @@ func TestCategoriesReportsEmptyResults(t *testing.T) {
 // `checkout` and `checkout status` are the same view; the alias must not be
 // mistaken for a positional argument.
 func TestCheckoutStatusIsAnAliasForCheckout(t *testing.T) {
-	withStubServer(t, `{"orderId":"","offersQuantity":0,"orderResume":{},"cartVendors":[]}`)
+	// Checkout is the account's, so the stub session has to carry the account.
+	stubEnv(t, stubServerFor(t, `{"orderId":"","offersQuantity":0,"orderResume":{},"cartVendors":[]}`), testCookie)
 
 	bare := captureStdout(t, func() {
 		if code := run([]string{"checkout"}); code != 0 {

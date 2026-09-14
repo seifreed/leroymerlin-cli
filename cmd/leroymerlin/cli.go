@@ -84,34 +84,30 @@ func loadSession(cl *client.Client, cfg config.Config) {
 	}
 }
 
-// warnWithoutSession tells the user on stderr why a cart-backed read came back
-// empty: the cart belongs to a session, and there is none. The read itself still
-// answers, which is what makes the warning worth printing.
-func warnWithoutSession(cl *client.Client) {
-	if cl.Cookie == "" {
-		stderrLogf("no cookie cached — the cart is tied to your browser session; run `leroymerlin login --from-browser chrome` first")
-		return
-	}
-	warnGuestCart(cl)
-}
-
-// warnGuestCart names the cart the user is actually operating on. A cookie
-// lifted from a signed-out browser works, so nothing fails — the items just
-// land in a guest cart that the account's own cart page never shows.
+// warnGuestCart tells the user on stderr that the cookie just cached carries no
+// account. Reads still work with it, which is why login accepts it; cart and
+// checkout do not, and say so themselves.
 func warnGuestCart(cl *client.Client) {
 	if !client.CookieIsSignedIn(cl.Cookie) {
-		stderrLogf("guest cart: the cached cookie carries no signed-in account, so these items will not appear in your account's cart — sign in at www.leroymerlin.es, then run `leroymerlin login --from-browser chrome` again")
+		stderrLogf("this cookie carries no signed-in account — searches work, but cart and checkout need your account: sign in at www.leroymerlin.es, then run `leroymerlin login --from-browser chrome` again")
 	}
 }
 
 // requireSession builds a client for an operation that cannot work anonymously,
 // naming it in the one hint that tells the user how to obtain a session.
+//
+// A cart belongs to whoever the session is: a cookie without the account token
+// addresses a guest cart, which reads and writes exactly like the user's own
+// and is invisible in their browser. Refusing it is the only way every cart and
+// checkout command can be about the account whose credentials were lifted.
 func requireSession(operation string) (*client.Client, error) {
 	cl := newClient()
 	if cl.Cookie == "" {
 		return nil, fmt.Errorf("%s need your browser session — run `leroymerlin login --from-browser chrome` (or import-har / set-cookie) first", operation)
 	}
-	warnGuestCart(cl)
+	if !client.CookieIsSignedIn(cl.Cookie) {
+		return nil, fmt.Errorf("%s address your account's cart, and the cached cookie carries no signed-in account — sign in at www.leroymerlin.es in your browser, then run `leroymerlin login --from-browser chrome` again", operation)
+	}
 	return cl, nil
 }
 

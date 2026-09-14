@@ -132,7 +132,7 @@ func TestCartAddNeedsCookie(t *testing.T) {
 }
 
 func TestCartGetPersistsRotatedSessionCookie(t *testing.T) {
-	dir := stubEnvServing(t, `datadome=DD`, func(w http.ResponseWriter, r *http.Request) {
+	dir := stubEnvServing(t, testCookie, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/checkout/backend/cart" {
 			http.NotFound(w, r)
 			return
@@ -326,15 +326,15 @@ func TestCartSetValidatesItsArguments(t *testing.T) {
 	}
 }
 
-// `cart get` works anonymously but warns, because a cart is tied to a browser
-// session and an empty result would otherwise look like an empty cart.
-func TestCartGetWarnsWithoutASession(t *testing.T) {
+// Without a session there is no cart to read: the storefront would answer with
+// whatever cart the request happens to create, which is nobody's.
+func TestCartGetRefusesWithoutASession(t *testing.T) {
 	stubEnvServing(t, "", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"orderId":"o1","offersQuantity":0,"cartVendors":[]}`))
 	})
 
-	if code := run([]string{"cart", "get"}); code != 0 {
-		t.Errorf("exit = %d, want 0: reads work anonymously", code)
+	if code := run([]string{"cart", "get"}); code == 0 {
+		t.Error("want a non-zero exit without a session")
 	}
 }
 
@@ -553,30 +553,39 @@ func TestCartAddExplainsAMissingProductPage(t *testing.T) {
 	}
 }
 
-// A cookie lifted from a signed-out browser reads and writes fine, so nothing
-// fails — the items land in a guest cart the account's own cart page never
-// shows. Saying so is the difference between a working command and a user
-// staring at an empty cart in their browser.
-func TestCartWarnsWhenTheSessionIsAGuestCart(t *testing.T) {
-	for _, tc := range []struct {
-		name, cookie string
-		want         bool
-	}{
-		{"guest", "datadome=DD; lm-csrf=TOK", true},
-		{"signed in", "datadome=DD; lm-csrf=TOK; idToken.jwt=JWT", false},
+// A cookie lifted from a signed-out browser reads and writes without error, but
+// the cart it addresses is a guest cart the account never shows. Every cart and
+// checkout command refuses it rather than operate on somebody else's cart.
+func TestCartAndCheckoutRefuseAGuestSession(t *testing.T) {
+	for _, args := range [][]string{
+		{"cart", "get"},
+		{"cart", "clear"},
+		{"cart", "add", "/productos/taladro-83085630.html"},
+		{"cart", "set", "83085630", "1"},
+		{"checkout"},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			stubEnvServing(t, tc.cookie, func(w http.ResponseWriter, _ *http.Request) {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			stubEnvServing(t, guestCookie, func(w http.ResponseWriter, _ *http.Request) {
 				_, _ = w.Write([]byte(`{"orderId":"o1","offersQuantity":0,"cartVendors":[]}`))
 			})
 			errs := captureStderr(t, func() {
-				if code := run([]string{"cart", "get"}); code != 0 {
-					t.Fatalf("exit = %d", code)
+				if code := run(args); code == 0 {
+					t.Errorf("%v: want a non-zero exit for a guest session", args)
 				}
 			})
-			if got := strings.Contains(errs, "guest cart"); got != tc.want {
-				t.Errorf("stderr = %q, want guest-cart warning = %v", errs, tc.want)
+			if !strings.Contains(errs, "no signed-in account") {
+				t.Errorf("stderr = %q, want the guest session named", errs)
 			}
 		})
+	}
+}
+
+// The same commands work once the cookie carries the account.
+func TestCartGetAcceptsASignedInSession(t *testing.T) {
+	stubEnvServing(t, testCookie, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"orderId":"o1","offersQuantity":0,"cartVendors":[]}`))
+	})
+	if code := run([]string{"cart", "get"}); code != 0 {
+		t.Errorf("exit = %d, want 0 with a signed-in session", code)
 	}
 }

@@ -113,6 +113,9 @@ SESSION (do this first — every command runs on your browser session):
                           with sensitive data"). --file - reads stdin.
   set-cookie '<cookie>'   paste a raw Cookie header from DevTools. --stdin too.
   whoami                  check the session is still being accepted
+                          cart and checkout need the session to be SIGNED IN:
+                          a signed-out one has its own guest cart, invisible in
+                          your browser, so they refuse it.
 
 READ COMMANDS:
   search <term...>        full-text product search

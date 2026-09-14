@@ -110,6 +110,8 @@ The CLI never drives a browser of its own. It used to offer that, and it could n
 
 The clearance **rotates and expires**, and the cart endpoints are scored more strictly than the rest — a `cart get` that starts failing while `search` still works is the cue to run `login` again, not a sign that anything broke.
 
+**Signed in, not just recognised.** A cookie lifted from a browser that was *not* signed in still reads, but its cart is a guest cart: items land in it, the storefront answers `2xx`, and your own cart page stays empty. So `cart` and `checkout` refuse a session without an account and tell you to sign in and run `login` again; `search`, `product`, `batch` and the rest keep working.
+
 ### Commands
 
 | Command | Description |

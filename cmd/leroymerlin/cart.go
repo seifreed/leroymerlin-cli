@@ -41,8 +41,10 @@ func cmdCart(args []string) error {
 func cartGet(args []string) error {
 	fs, cf := newCommonFlags("cart get")
 	parseFlags(fs, args)
-	cl := newClient()
-	warnWithoutSession(cl)
+	cl, err := requireSession("cart reads")
+	if err != nil {
+		return err
+	}
 	cart, err := cl.Cart()
 	if err != nil {
 		return cleanCartErr(err)

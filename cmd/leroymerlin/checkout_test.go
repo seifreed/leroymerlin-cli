@@ -115,7 +115,7 @@ const shippingStubJSON = `{
 
 func shippingStub(t *testing.T) {
 	t.Helper()
-	stubEnvServing(t, `datadome=DD`, func(w http.ResponseWriter, r *http.Request) {
+	stubEnvServing(t, testCookie, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/checkout/backend/cart" {
 			_, _ = w.Write([]byte(detailCartJSON))
 			return
@@ -130,7 +130,7 @@ func shippingStub(t *testing.T) {
 
 func emptyCheckoutStub(t *testing.T) {
 	t.Helper()
-	stubEnvServing(t, `datadome=DD`, func(w http.ResponseWriter, r *http.Request) {
+	stubEnvServing(t, testCookie, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/checkout/backend/cart" {
 			_, _ = w.Write([]byte(`{"orderId":"o1","offersQuantity":0,"cartVendors":[]}`))
 			return
@@ -331,7 +331,7 @@ func TestCheckoutSlotsHumanViewOnAnEmptyCart(t *testing.T) {
 // A populated cart with no offered slots is a different message from an empty
 // cart, and reaches a different branch.
 func TestCheckoutSlotsReportsNoneAvailable(t *testing.T) {
-	stubEnvServing(t, `datadome=DD`, func(w http.ResponseWriter, r *http.Request) {
+	stubEnvServing(t, testCookie, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/checkout/backend/cart":
 			_, _ = w.Write([]byte(detailCartJSON))

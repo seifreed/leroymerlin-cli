@@ -35,8 +35,10 @@ func checkoutStatus(args []string) error {
 	fs, cf := newCommonFlags("checkout")
 	parseFlags(fs, args)
 
-	cl := newClient()
-	warnWithoutSession(cl)
+	cl, err := requireSession("checkout reads")
+	if err != nil {
+		return err
+	}
 	status, err := application.ReadCheckoutStatus(cl)
 	if err != nil {
 		return cleanCartErr(err)
