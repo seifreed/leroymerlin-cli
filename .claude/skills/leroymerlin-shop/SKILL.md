@@ -186,6 +186,14 @@ surfaces the storefront's own verdict: `search` and `brands` warn on stderr (`no
 to price it. **Treat a relaxed hit as not-found**: re-search with different words, and if it still
 relaxes, put the item on the not-found list instead of in the cart.
 
+**Services and made-to-measure are not in the catalogue.** `instalación aire acondicionado`, `montaje
+muebles`, `corte de madera a medida`, `encimera a medida`, `toldo a medida` all return **no results** —
+not because the store doesn't do them, but because they are quoted in store or through a configurator,
+never as a product with a ref. Don't report them as "not stocked" and don't substitute a lookalike
+product: put them on a separate **"se contrata en tienda"** line in the plan. (A zero-result search is
+also the one honest "no" the storefront gives — for a physical product it usually means the wording is
+wrong, so re-search before concluding anything.)
+
 **Mark what doesn't exist or got substituted.** Some specific parts aren't stocked, or only a near
 equivalent is. Don't force a bad match: keep an explicit **"not found — check in store / buy elsewhere"**
 list, and flag every substitution (⚠️ 6 mm offered vs 8 mm asked, brand X vs Y) in the plan so the user
