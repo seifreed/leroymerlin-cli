@@ -17,6 +17,9 @@ const detailCartJSON = `{
   ]}]
 }`
 
+// emptyCartJSON is the same cart once its only line is gone.
+const emptyCartJSON = `{"orderId":"o1","offersQuantity":0,"orderResume":{},"cartVendors":[]}`
+
 // cartMutStub serves the detailed cart and records PUT/DELETE mutations.
 func cartMutStub(t *testing.T) (puts, deletes *[]string) {
 	t.Helper()
@@ -28,7 +31,11 @@ func cartMutStub(t *testing.T) (puts, deletes *[]string) {
 		defer mu.Unlock()
 		switch {
 		case r.URL.Path == "/checkout/backend/cart":
-			_, _ = w.Write([]byte(detailCartJSON))
+			body := detailCartJSON
+			if len(d) > 0 {
+				body = emptyCartJSON
+			}
+			_, _ = w.Write([]byte(body))
 		case strings.Contains(r.URL.Path, "/update-offer-line-quantity/"):
 			p = append(p, r.URL.Path)
 			w.WriteHeader(200)

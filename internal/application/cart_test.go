@@ -15,6 +15,8 @@ type fakeCart struct {
 	deleted    string
 	readErr    error
 	writeErr   error
+	// ignoreDeletes mimics the storefront accepting a delete and discarding it.
+	ignoreDeletes bool
 }
 
 func (f *fakeCart) Cart() (*domain.CartDetail, error) {
@@ -29,7 +31,17 @@ func (f *fakeCart) SetLineQuantity(lineID string, qty int) error {
 
 func (f *fakeCart) DeleteLine(lineID string) error {
 	f.deleted = lineID
-	return f.writeErr
+	if f.writeErr != nil || f.ignoreDeletes {
+		return f.writeErr
+	}
+	kept := make([]domain.CartLine, 0, len(f.cart.Lines))
+	for _, l := range f.cart.Lines {
+		if l.LineID != lineID {
+			kept = append(kept, l)
+		}
+	}
+	f.cart.Lines = kept
+	return nil
 }
 
 func TestSetCartQuantityUsesLineIDAndRefreshes(t *testing.T) {
@@ -47,6 +59,18 @@ func TestClearCartDeletesAllLines(t *testing.T) {
 	count, err := ClearCart(fake, fake)
 	if err != nil || count != 2 || fake.deleted != "line-2" {
 		t.Fatalf("count=%d err=%v deleted=%q", count, err, fake.deleted)
+	}
+}
+
+// A delete the storefront accepts and discards must not be reported as a
+// cleared cart: the emptied cart is read back, not assumed.
+func TestClearCartSurfacesLinesThatSurviveTheDelete(t *testing.T) {
+	fake := &fakeCart{
+		cart:          &domain.CartDetail{Lines: []domain.CartLine{{LineID: "line-1"}}},
+		ignoreDeletes: true,
+	}
+	if count, err := ClearCart(fake, fake); err == nil {
+		t.Fatalf("count=%d err=nil, want the surviving line surfaced", count)
 	}
 }
 

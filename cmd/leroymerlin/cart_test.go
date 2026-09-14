@@ -241,9 +241,15 @@ func TestCartWritesRequireASession(t *testing.T) {
 }
 
 func TestCartClearReportsHowManyLinesWent(t *testing.T) {
+	deleted := false
 	stubEnvServing(t, testCookie, func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/delete-offer-line/") {
+			deleted = true
 			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if deleted {
+			_, _ = w.Write([]byte(emptyCartJSON))
 			return
 		}
 		_, _ = w.Write([]byte(detailCartJSON))

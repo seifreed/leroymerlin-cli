@@ -45,17 +45,30 @@ func SetCartQuantity(reader CartReader, writer CartWriter, ref string, qty int) 
 }
 
 // ClearCart removes every existing cart line and returns the number removed.
+// The storefront can answer 2xx to a write it discards, so the emptied cart is
+// read back rather than inferred from the deletes having been accepted.
 func ClearCart(reader CartReader, writer CartWriter) (int, error) {
 	cart, err := reader.Cart()
 	if err != nil {
 		return 0, err
+	}
+	removed := len(cart.Lines)
+	if removed == 0 {
+		return 0, nil
 	}
 	for _, line := range cart.Lines {
 		if err := writer.DeleteLine(line.LineID); err != nil {
 			return 0, err
 		}
 	}
-	return len(cart.Lines), nil
+	after, err := reader.Cart()
+	if err != nil {
+		return 0, err
+	}
+	if len(after.Lines) > 0 {
+		return 0, fmt.Errorf("the storefront accepted the deletes but %d line(s) are still in the cart", len(after.Lines))
+	}
+	return removed, nil
 }
 
 func lineByRef(cart *domain.CartDetail, ref string) (domain.CartLine, bool) {
