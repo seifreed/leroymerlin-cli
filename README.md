@@ -38,7 +38,9 @@ It runs on **your own logged-in browser session** — see [Session](#session). W
 | **Your session, your data** | Prices, stock, delivery options and the cart follow the store your signed-in browser has selected |
 | **Agent-first output** | `--json` and `--toon` on every command; data on stdout, diagnostics on stderr |
 | **Exact money** | Basket totals sum in integer cents; prices read from the offer the storefront bills, not from stale JSON-LD |
-| **Spending guard** | `--max` refuses a cart line over the cap, fail-closed: an unreadable price refuses the write |
+| **Spending guard** | `--max` refuses a `cart add` or `cart set` over the cap, fail-closed: an unreadable price refuses the write, and the refusal names whether the cap came from the flag, the env var or the config |
+| **Verified writes** | A `2xx` the storefront discards is not a success: `cart add` requires the cart to grow, `cart clear` re-reads the emptied cart |
+| **No silent wrong product** | A search that found no match is reported as such — the storefront answers those with something else |
 | **Brand preferences** | `batch` resolves each term to a favourite brand, with per-term overrides |
 | **Terminal-safe** | Control characters are stripped from remote text — a marketplace seller writes the product name |
 | **Read-only checkout** | Reports totals and blockers; payment is never automated |
@@ -52,6 +54,12 @@ price               the offer object the add-to-cart form names — NOT the JSON
                     which can lag it (one drill advertised 13.99 there, cart charged 14.95)
 add-to-cart fields  the hidden reflm / offerId / contextCode inputs of that same form
 specs & stock       the o-main-characteristics rows and the available_deliveries blob
+                    (availability comes from there, not from the JSON-LD, which says
+                    OutOfStock for a product with 119 units in store)
+seller              the seller_name / seller_type of that same offer (3P = marketplace)
+match quality       the listing page's own "searchType": original / refinement mean a
+                    real match, relaxed* means the query was widened to have something
+                    to show
 ```
 
 ---
@@ -86,7 +94,7 @@ go build -o leroymerlin ./cmd/leroymerlin
 ```bash
 # Sign in at www.leroymerlin.es in your everyday browser, load a page, then:
 leroymerlin login                    # lifts that browser's session
-leroymerlin whoami                   # confirms it is being accepted
+leroymerlin whoami                   # confirms it is accepted AND signed in
 
 # Full-text search
 leroymerlin search taladro --limit 5
@@ -96,6 +104,12 @@ leroymerlin search --cheapest --in-stock --limit 10 --json destornillador
 
 # Product detail — pass the url from a search result
 leroymerlin product /productos/taladro-percutor-practyl-500-w-con-tope-de-profundidad-83085630.html
+
+# Price a shopping list, then fill the cart under a hard cap
+printf 'cinta aislante 2\nsilicona sanitaria 1\n' | leroymerlin total -f -
+leroymerlin cart add /productos/cinta-aislante-lexman-de-19x0-cm-88878737.html 2 --max 5
+leroymerlin cart get
+leroymerlin checkout                 # what is blocking, and the delivery options
 ```
 
 ---
@@ -130,7 +144,7 @@ The clearance **rotates and expires**, and the cart endpoints are scored more st
 | `leroymerlin product <url\|path>` | product detail: price, seller, brand, rating, specs, per-channel stock |
 | `leroymerlin cart get` | show the cart — lines, quantities, totals |
 | `leroymerlin cart add <url> [qty]` | add a product (`--max <eur>` spending guard); refuses a non-product url, and warns when the product has no stock |
-| `leroymerlin cart set <ref> <qty>` | set an absolute quantity (0 removes the line) |
+| `leroymerlin cart set <ref> <qty>` | set an absolute quantity, 0 removes the line (`--max <eur>` too — raising a quantity spends like adding one) |
 | `leroymerlin cart clear` | empty the cart |
 | `leroymerlin checkout [status]` | total + whether checkout is blocked; read-only, never pays |
 | `leroymerlin checkout addresses` | saved delivery and invoice addresses |
@@ -191,10 +205,10 @@ cookie = "…"                    # a session to fall back on; `login` normally 
 ## Notes and limits
 
 - **`--limit` counts what survives, not what was fetched.** With `--cheapest`, `--in-stock` or `--on-offer` in play, a whole page is read first and the cut to N happens after — otherwise `--cheapest --limit 3` would answer "the cheapest of the first 3", which on a page led by sponsored listings is the three most expensive. A limit past one page auto-paginates (the site pages via `p`), deduping across pages, capped at 25. `--limit 0` returns a single page (~48).
-- **`batch --on-offer` narrows the candidates, then picks** — so a term resolves to its discounted product instead of being dropped because the cheapest hit carried no offer. `search --on-offer` filters the list the same way.
+- **`batch --on-offer` narrows the candidates, then picks** — so a term resolves to its discounted product instead of losing out because the cheapest hit carried no offer. A term that really has none stays on the list, marked `(sin producto en oferta)` / `"noOffer": true`, so a priced list never quietly loses a line. `search --on-offer` filters the list the same way.
 - **`product` needs the URL**, not a bare reference: the site requires the full slug. Take it from `search` output (`url` field).
 - **Per-store stock.** `product` reports pickup / home delivery / relay-point stock and cost for the store your session is set to. To check another, select it on leroymerlin.es and run `login` again. There is no standalone store command — the store context lives in the session, not in a clean public endpoint.
-- **Checkout never pays.** It reports the total and what blocks checkout (a guest cart blocks on account and address). Placing an order is out of scope by design.
+- **Checkout never pays.** It reports the total and what blocks checkout — usually just the delivery slot, since the cart is always an account's. A cart holding a marketplace line ships in several parcels, so `checkout slots` lists one block per shipper, each with its own selected option. Placing an order is out of scope by design.
 - **Spanish only.** The storefront does not negotiate language: the same page requested with a Catalan `Accept-Language` comes back byte for byte identical, still `lang="es-ES"`, with no `hreflang` alternate.
 
 ---
@@ -213,7 +227,7 @@ Contributions are welcome.
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Run the gate (`make check`) — formatting, vet, tests and build must pass
+4. Run the gate (`make check`) — formatting, vet, tests and build must pass, and `make cover`, which the project keeps at 100% of statements
 5. Open a Pull Request
 
 ---
