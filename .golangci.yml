@@ -1,0 +1,34 @@
+version: "2"
+
+linters:
+  enable:
+    - staticcheck
+    - govet
+    - errcheck
+    - gosec
+    - revive
+    - ineffassign
+    - unused
+    - gocritic
+  settings:
+    errcheck:
+      exclude-functions:
+        - (io.Closer).Close
+        - (io.ReadCloser).Close
+        - (net.Conn).Close
+        - (*os.File).Close
+        - (net/http.ResponseWriter).Write
+    gosec:
+      excludes:
+        # G304: a CLI that fetches user-named URLs and reads config the user points at.
+        - G304
+        # G404: math/rand is only backoff jitter, never security-sensitive.
+        - G404
+        # G104: redundant with errcheck; the only unhandled errors are cleanup Close().
+        - G104
+  exclusions:
+    rules:
+      # gosec audits shipped code, not test stubs that echo request input.
+      - path: _test\.go
+        linters:
+          - gosec

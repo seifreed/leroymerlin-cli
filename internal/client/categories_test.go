@@ -1,0 +1,99 @@
+package client
+
+import (
+	"net/http"
+	"testing"
+)
+
+func TestParseCategories(t *testing.T) {
+	html := `<nav>
+	  <a href="/productos/iluminacion/"><span>Iluminación</span></a>
+	  <a href="/productos/banos/">Baños</a>
+	  <a href="/productos/iluminacion/">dup label, same path</a>
+	  <a href="/productos/herramientas/electricas/">too deep — ignored</a>
+	  <a href="/search?q=x">not a category</a>
+	</nav>`
+	cats := parseCategories(html)
+	if len(cats) != 2 {
+		t.Fatalf("want 2 categories, got %d: %+v", len(cats), cats)
+	}
+	if cats[0].Name != "Iluminación" || cats[0].Path != "/productos/iluminacion/" {
+		t.Errorf("first = %+v", cats[0])
+	}
+	if cats[1].Name != "Baños" {
+		t.Errorf("second name = %q", cats[1].Name)
+	}
+}
+
+func TestParseSubcategories(t *testing.T) {
+	html := `<div class="mesh">
+	  <a class="l-thematicmesh__link" data-button-name="Herramientas manuales" href="/productos/herramientas/herramientas-de-mano/"><img></a>
+	  <a class="l-thematicmesh__link" data-button-name="Aspiradoras" href="/productos/herramientas/aspiradoras/"><img></a>
+	  <a class="l-thematicmesh__link" data-button-name="Dexter" href="/productos/marcas/dexter/"><img></a>
+	  <a class="l-thematicmesh__link" data-button-name="dup" href="/productos/herramientas/herramientas-de-mano/"><img></a>
+	</div>`
+	kids := parseSubcategories(html, "/productos/herramientas/")
+	if len(kids) != 2 {
+		t.Fatalf("want 2 children (brand + dup excluded), got %d: %+v", len(kids), kids)
+	}
+	if kids[0].Name != "Herramientas manuales" || kids[0].Path != "/productos/herramientas/herramientas-de-mano/" {
+		t.Errorf("first child = %+v", kids[0])
+	}
+}
+
+func TestNormalizeCategoryPath(t *testing.T) {
+	for _, in := range []string{"iluminacion", "/iluminacion/", "productos/iluminacion", "/productos/iluminacion/"} {
+		if got := normalizeCategoryPath(in); got != "/productos/iluminacion/" {
+			t.Errorf("%q → %q", in, got)
+		}
+	}
+}
+
+func TestCategoryProductsReusesParser(t *testing.T) {
+	card := `<script type="application/json" class="dataTms">[{"name":"cdl_products_list","value":[{"identifier":"7","name":"Lámpara","url":"/productos/x-7.html","offer":{"unitprice_ati":3.99,"add_to_cart_availability":true}}]}]</script>`
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/productos/iluminacion/" {
+			t.Errorf("unexpected path %q", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(card))
+	})
+	prods, err := c.CategoryProducts("iluminacion", 0)
+	if err != nil || len(prods) != 1 || prods[0].Identifier != "7" {
+		t.Fatalf("got %+v, %v", prods, err)
+	}
+}
+
+func TestCategoriesFetchesTheProductIndex(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/productos/" {
+			t.Errorf("unexpected path %q", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`<a href="/productos/banos/"><span>Baños</span></a>`))
+	})
+	cats, err := c.Categories()
+	if err != nil || len(cats) != 1 || cats[0].Name != "Baños" {
+		t.Fatalf("Categories() = %+v, %v", cats, err)
+	}
+}
+
+func TestSubcategoriesNormalizesTheParentPath(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/productos/iluminacion/" {
+			t.Errorf("bare category name was not normalized: got %q", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`<a data-button-name="Focos" href="/productos/iluminacion/focos/">x</a>`))
+	})
+	subs, err := c.Subcategories("iluminacion")
+	if err != nil || len(subs) != 1 || subs[0].Name != "Focos" {
+		t.Fatalf("Subcategories() = %+v, %v", subs, err)
+	}
+}
+
+func TestCategoriesPropagatesTransportErrors(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	if _, err := c.Categories(); err == nil {
+		t.Fatal("want the HTTP 500 surfaced, got nil")
+	}
+}
