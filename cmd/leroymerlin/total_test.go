@@ -177,3 +177,19 @@ func TestPriceRefKeepsTheNameWhenASearchPriceIsUnrepresentable(t *testing.T) {
 		t.Errorf("name = %q, want it preserved alongside the error", name)
 	}
 }
+
+// The product page writes sixty cents as "0.6"; a basket that shows "0.6" on
+// one line and "0.60" on the next reads like two different prices.
+func TestTotalRendersUrlPricesInTwoDecimals(t *testing.T) {
+	stubEnvServing(t, testCookie, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`<script type="application/ld+json">{"@type":"Product","name":"Guantes","sku":"7","offers":{"price":"0.6","priceCurrency":"EUR"}}</script>`))
+	})
+	out := captureStdout(t, func() {
+		if code := run([]string{"total", "/productos/guantes-7.html"}); code != 0 {
+			t.Fatalf("exit = %d", code)
+		}
+	})
+	if !strings.Contains(out, "1 × 0.60€") {
+		t.Errorf("output = %q, want the unit price in two decimals", out)
+	}
+}

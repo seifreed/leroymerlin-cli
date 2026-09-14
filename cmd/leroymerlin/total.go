@@ -96,7 +96,10 @@ func priceRef(cl *client.Client, ref string) (name, price string, cents int64, e
 		if cerr != nil {
 			return pd.Name, "", 0, cerr
 		}
-		return pd.Name, pd.Price(), c, nil
+		// Render from cents like the term branch does: the page writes "0.6" for
+		// sixty cents, and a basket that mixes "0.6" with "0.60" reads like two
+		// different prices.
+		return pd.Name, domain.FormatCents(c), c, nil
 	}
 	found, serr := cl.Search(ref, 0)
 	if serr != nil {
