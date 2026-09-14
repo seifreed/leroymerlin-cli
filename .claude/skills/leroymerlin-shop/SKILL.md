@@ -99,6 +99,16 @@ theirs: a cookie lifted before they signed in (a guest cart), or a different acc
 
 **Never echo the cookie back to the user.** Feed it via `--from-browser`, the HAR or `--stdin`, never print it.
 
+### Preflight (two commands, every session)
+
+```bash
+leroymerlin whoami     # reads working AND signed in? cart/checkout need both
+leroymerlin cart get   # what is already in the cart before you add to it
+```
+
+A signed-out session reads fine and fails at the first `cart` command; a cart that already holds the
+user's own items is not yours to clear. Do both before resolving anything.
+
 ## The photo → cart workflow (the headline)
 
 When the user drops an **image** (a tool, a broken fitting/part to replace, a room or wall to reform, a
