@@ -93,19 +93,19 @@ func cartSet(args []string) error {
 	if err != nil {
 		return err
 	}
-	cap, err := resolveMax(*maxFlag, maxSet)
+	limit, err := resolveMax(*maxFlag, maxSet)
 	if err != nil {
 		return err
 	}
 	// Spending guard: `cart set` raises a quantity as freely as `cart add` adds
 	// one, so it has to answer to the same cap. The cart's own line is the price
 	// source — it is what the storefront bills.
-	if cap.EUR > 0 && qty > 0 {
+	if limit.EUR > 0 && qty > 0 {
 		cart, cerr := cl.Cart()
 		if cerr != nil {
 			return cleanCartErr(cerr)
 		}
-		if err := enforceMaxCartLine(cart, ref, qty, cap); err != nil {
+		if err := enforceMaxCartLine(cart, ref, qty, limit); err != nil {
 			return err
 		}
 	}
@@ -201,11 +201,11 @@ func cartAdd(args []string) error {
 	}
 
 	// Spending guard: price the line and refuse before writing if it exceeds the cap.
-	cap, err := resolveMax(*maxFlag, maxSet)
+	limit, err := resolveMax(*maxFlag, maxSet)
 	if err != nil {
 		return err
 	}
-	if err := enforceMaxLine(detail, qty, cap); err != nil {
+	if err := enforceMaxLine(detail, qty, limit); err != nil {
 		return err
 	}
 
@@ -255,8 +255,8 @@ func flagWasSet(fs *flag.FlagSet, name string) bool {
 // enforceMaxLine refuses a cart write whose line total would exceed maxEUR euros.
 // A zero or negative maxEUR disables the guard. Prices are compared in integer
 // cents so the check never drifts.
-func enforceMaxLine(detail *domain.ProductDetail, qty int, cap spendingCap) error {
-	if cap.EUR <= 0 {
+func enforceMaxLine(detail *domain.ProductDetail, qty int, limit spendingCap) error {
+	if limit.EUR <= 0 {
 		return nil
 	}
 	if detail == nil {
@@ -266,14 +266,14 @@ func enforceMaxLine(detail *domain.ProductDetail, qty int, cap spendingCap) erro
 	if err != nil {
 		return fmt.Errorf("cannot enforce --max: %w", err)
 	}
-	return enforceMaxUnits(unit, qty, cap)
+	return enforceMaxUnits(unit, qty, limit)
 }
 
 // enforceMaxCartLine prices a `cart set` from the cart's own line: its Price is
 // the line total the storefront bills for its current quantity, so the unit is
 // that divided by it. A ref that is not in the cart is left to the use case,
 // which has the error the user needs.
-func enforceMaxCartLine(cart *domain.CartDetail, ref string, qty int, cap spendingCap) error {
+func enforceMaxCartLine(cart *domain.CartDetail, ref string, qty int, limit spendingCap) error {
 	for _, line := range cart.Lines {
 		if line.Reflm != ref {
 			continue
@@ -285,25 +285,25 @@ func enforceMaxCartLine(cart *domain.CartDetail, ref string, qty int, cap spendi
 		if err != nil {
 			return fmt.Errorf("cannot enforce --max: %w", err)
 		}
-		return enforceMaxUnits(total/int64(line.Quantity), qty, cap)
+		return enforceMaxUnits(total/int64(line.Quantity), qty, limit)
 	}
 	return nil
 }
 
 // enforceMaxUnits is the shared cap check: unit price × quantity against the cap,
 // all in integer cents so it never drifts.
-func enforceMaxUnits(unitCents int64, qty int, cap spendingCap) error {
+func enforceMaxUnits(unitCents int64, qty int, limit spendingCap) error {
 	line, err := domain.MultiplyCents(unitCents, float64(qty))
 	if err != nil {
 		return fmt.Errorf("cannot enforce --max: %w", err)
 	}
-	capCents, err := domain.EurosToCents(cap.EUR)
+	capCents, err := domain.EurosToCents(limit.EUR)
 	if err != nil {
 		return fmt.Errorf("cannot enforce --max: %w", err)
 	}
 	if line > capCents {
 		return fmt.Errorf("line %s€ exceeds the %.2f€ cap from %s — not written (raise it to override)",
-			domain.FormatCents(line), cap.EUR, cap.Source)
+			domain.FormatCents(line), limit.EUR, limit.Source)
 	}
 	return nil
 }
