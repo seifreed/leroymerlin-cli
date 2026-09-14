@@ -13,19 +13,19 @@ import (
 
 func TestResolveMax(t *testing.T) {
 	t.Setenv("LEROYMERLIN_CONFIG_DIR", t.TempDir())
-	// flag wins
-	if got, err := resolveMax(50, true); err != nil || got != 50 {
-		t.Errorf("flag: got %v", got)
+	// flag wins, and the cap names where it came from
+	if got, err := resolveMax(50, true); err != nil || got.EUR != 50 || got.Source != "--max" {
+		t.Errorf("flag: got %+v", got)
 	}
 	// env when flag unset (negative sentinel)
 	t.Setenv("LEROYMERLIN_MAX_EUR", "25")
-	if got, err := resolveMax(-1, false); err != nil || got != 25 {
-		t.Errorf("env: got %v", got)
+	if got, err := resolveMax(-1, false); err != nil || got.EUR != 25 || got.Source != "LEROYMERLIN_MAX_EUR" {
+		t.Errorf("env: got %+v", got)
 	}
 	// no cap
 	t.Setenv("LEROYMERLIN_MAX_EUR", "")
-	if got, err := resolveMax(-1, false); err != nil || got != 0 {
-		t.Errorf("none: got %v", got)
+	if got, err := resolveMax(-1, false); err != nil || got.EUR != 0 {
+		t.Errorf("none: got %+v", got)
 	}
 	if _, err := resolveMax(math.NaN(), true); err == nil {
 		t.Error("NaN flag should be rejected")
@@ -171,7 +171,7 @@ func TestEnforceMaxLine(t *testing.T) {
 		{"unparseable price cannot be checked", &domain.ProductDetail{}, 1, 10, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			err := enforceMaxLine(tc.detail, tc.qty, tc.maxEUR)
+			err := enforceMaxLine(tc.detail, tc.qty, spendingCap{EUR: tc.maxEUR, Source: "--max"})
 			if (err != nil) != tc.wantErr {
 				t.Fatalf("enforceMaxLine(%v, %v) error = %v, wantErr %v", tc.qty, tc.maxEUR, err, tc.wantErr)
 			}
@@ -305,8 +305,8 @@ func TestResolveMaxFallsBackToConfigToml(t *testing.T) {
 	}
 
 	got, err := resolveMax(-1, false)
-	if err != nil || got != 75.5 {
-		t.Fatalf("resolveMax = %v, %v; want 75.5", got, err)
+	if err != nil || got.EUR != 75.5 || got.Source != "[limits] max_eur" {
+		t.Fatalf("resolveMax = %+v, %v; want 75.5 from the config file", got, err)
 	}
 }
 
@@ -400,18 +400,18 @@ func TestCartCommandsReportAFailedSessionWrite(t *testing.T) {
 // cap would be the one outcome a spending guard must never produce.
 func TestEnforceMaxLineRefusesWhenItCannotCompute(t *testing.T) {
 	unpriced := &domain.ProductDetail{Offers: []domain.ProductOffer{{Price: "n/a"}}}
-	if err := enforceMaxLine(unpriced, 1, 50); err == nil {
+	if err := enforceMaxLine(unpriced, 1, spendingCap{EUR: 50, Source: "--max"}); err == nil {
 		t.Error("an unreadable price must block the write")
 	}
 
 	priced := &domain.ProductDetail{Offers: []domain.ProductOffer{{Price: "13.99"}}}
 	// 1399 cents x 1e16 overflows the int64 cent space; assert it is the
 	// multiplication that refuses, not the cap comparison further down.
-	err := enforceMaxLine(priced, 1e16, math.MaxFloat64)
+	err := enforceMaxLine(priced, 1e16, spendingCap{EUR: math.MaxFloat64, Source: "--max"})
 	if err == nil || !strings.Contains(err.Error(), "cannot enforce --max") {
 		t.Errorf("err = %v, want the guard to refuse an unrepresentable line total", err)
 	}
-	if err := enforceMaxLine(priced, 1, math.Inf(1)); err == nil {
+	if err := enforceMaxLine(priced, 1, spendingCap{EUR: math.Inf(1), Source: "--max"}); err == nil {
 		t.Error("an unrepresentable cap must block the write")
 	}
 }
@@ -587,5 +587,16 @@ func TestCartGetAcceptsASignedInSession(t *testing.T) {
 	})
 	if code := run([]string{"cart", "get"}); code != 0 {
 		t.Errorf("exit = %d, want 0 with a signed-in session", code)
+	}
+}
+
+// A cap from the config file reported as "--max" sends the user looking for a
+// flag they never passed, so the refusal names where the number came from.
+func TestCartAddRefusalNamesTheCapSource(t *testing.T) {
+	cartStub(t, "13.99")
+	t.Setenv("LEROYMERLIN_MAX_EUR", "5")
+	err := cmdCart([]string{"add", "/productos/taladro-83085630.html"})
+	if err == nil || !strings.Contains(err.Error(), "LEROYMERLIN_MAX_EUR") {
+		t.Errorf("error = %v, want the env var named as the cap's source", err)
 	}
 }

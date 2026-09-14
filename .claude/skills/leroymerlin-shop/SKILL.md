@@ -32,7 +32,8 @@ This touches a real account and real money, so:
    the user catches a wrong model, size, voltage or quantity — cheap now, annoying after the cart is full.
 2. **Always cap spend with `--max`.** Put a hard euro ceiling on every `cart add` and every `cart set` so a wrong match or a
    fat-fingered quantity can't run up the order. Use the user's stated budget, else the agreed plan
-   total per line with a little margin. A line over the cap fails with `error: line … exceeds --max …`
+   total per line with a little margin. A line over the cap fails with `error: line … exceeds the …€ cap from <source>` (the message names
+   whether the number came from `--max`, `LEROYMERLIN_MAX_EUR` or `[limits] max_eur`)
    and a non-zero exit — treat that as **stop-and-report**, don't raise the cap unless the user does.
 3. **This CLI does NOT place orders.** There is no `submit`. The skill prepares the cart and reports
    checkout readiness (`leroymerlin checkout`), but the user finishes the order themselves in the
