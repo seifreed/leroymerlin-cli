@@ -9,10 +9,11 @@ import (
 
 type batchCatalog struct {
 	products map[string][]domain.Product
+	relaxed  bool
 }
 
-func (c batchCatalog) Search(term string, _ int) ([]domain.Product, error) {
-	return c.products[term], nil
+func (c batchCatalog) Search(term string, _ int) (domain.SearchResult, error) {
+	return domain.SearchResult{Products: c.products[term], Relaxed: c.relaxed}, nil
 }
 
 func TestResolveBatchAppliesPreferencesAndTracksMissing(t *testing.T) {
@@ -61,5 +62,18 @@ func TestResolveBatchCountsFailuresAndEmptiesAsMissing(t *testing.T) {
 		if h.Product != nil {
 			t.Errorf("term %q should carry no product", h.Term)
 		}
+	}
+}
+
+// A term the catalogue does not stock still resolves to a product, so the hit
+// has to carry the storefront's verdict or the plan prices the wrong thing.
+func TestResolveBatchMarksRelaxedTerms(t *testing.T) {
+	catalog := batchCatalog{
+		relaxed:  true,
+		products: map[string][]domain.Product{"tirafondos": {{Identifier: "papel-pintado", Offer: domain.Offer{UnitPriceATI: 14.99, AddToCart: true}}}},
+	}
+	hits, missing := ResolveBatch(catalog, []string{"tirafondos"}, domain.BrandPreferences{}, nil, false, false)
+	if missing != 0 || len(hits) != 1 || !hits[0].Relaxed {
+		t.Fatalf("hits = %+v, missing = %d; want the relaxed term flagged", hits, missing)
 	}
 }

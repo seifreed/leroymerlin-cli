@@ -9,6 +9,7 @@ import (
 
 	"github.com/seifreed/leroymerlin-cli/internal/application"
 	"github.com/seifreed/leroymerlin-cli/internal/client"
+	"github.com/seifreed/leroymerlin-cli/internal/domain"
 )
 
 // cmdSearch runs a full-text product search.
@@ -26,18 +27,29 @@ func cmdSearch(args []string) error {
 	}
 
 	cl := newClient()
-	products, err := application.SearchProducts(cl, term, application.SearchOptions{
+	found, err := application.SearchProducts(cl, term, application.SearchOptions{
 		Limit: *limit, Cheapest: *cheapest, InStock: *inStock, OnOfferOnly: *onOfferOnly,
 	})
 	if err != nil {
 		return err
 	}
+	warnRelaxedSearch(found, term)
 
-	if emitted, err := emitStructured(cf, products); emitted || err != nil {
+	if emitted, err := emitStructured(cf, found.Products); emitted || err != nil {
 		return err
 	}
-	printProducts(products, "no results")
+	printProducts(found.Products, "no results")
 	return nil
+}
+
+// warnRelaxedSearch says on stderr that the hits are the storefront's
+// suggestions rather than matches. The storefront answers every query with
+// products — a term it does not stock comes back as a confident, unrelated
+// listing, which is how a wrong product reaches a plan and then a cart.
+func warnRelaxedSearch(found domain.SearchResult, term string) {
+	if found.Relaxed && len(found.Products) > 0 {
+		stderrLogf("no exact match for %q — the storefront widened the search, so these are suggestions, not matches", term)
+	}
 }
 
 // cmdProduct shows a product page's detail. The argument is the url (or path)

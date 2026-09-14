@@ -166,6 +166,14 @@ dimension/voltage/finish, marketplace sellers (a `seller_type` of `3P` ships fro
 but flag it), and items sold by length/area (cable, moulding, tiles — buy the right quantity). DIY
 catalogues are deep; eyeball every hit and re-`search` anything that looks wrong.
 
+**A term with no match comes back as a real product anyway.** The storefront never answers a search
+with nothing: it widens the query and shows something else, so `tirafondos 4x40 inox` that it does not
+stock can return a roll of wallpaper at 14,99€ — priced, in stock, and utterly wrong. The CLI now
+surfaces the storefront's own verdict: `search` and `brands` warn on stderr (`no exact match for …`),
+`batch` marks the line `⚠ sin coincidencia exacta` (`"relaxed": true` in `--json`), and `total` refuses
+to price it. **Treat a relaxed hit as not-found**: re-search with different words, and if it still
+relaxes, put the item on the not-found list instead of in the cart.
+
 **Mark what doesn't exist or got substituted.** Some specific parts aren't stocked, or only a near
 equivalent is. Don't force a bad match: keep an explicit **"not found — check in store / buy elsewhere"**
 list, and flag every substitution (⚠️ 6 mm offered vs 8 mm asked, brand X vs Y) in the plan so the user

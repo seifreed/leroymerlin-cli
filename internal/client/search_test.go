@@ -69,19 +69,19 @@ func TestSearchPaginates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 5 {
-		t.Fatalf("want 5 across pages, got %d: %+v", len(got), got)
+	if len(got.Products) != 5 {
+		t.Fatalf("want 5 across pages, got %d: %+v", len(got.Products), got.Products)
 	}
 	// first two from page 1, then page 2, page 3 — all unique
 	ids := map[string]bool{}
-	for _, p := range got {
+	for _, p := range got.Products {
 		if ids[p.Identifier] {
 			t.Errorf("duplicate across pages: %s", p.Identifier)
 		}
 		ids[p.Identifier] = true
 	}
-	if got[0].Identifier != "10a" || got[2].Identifier != "20a" {
-		t.Errorf("page order wrong: %s … %s", got[0].Identifier, got[2].Identifier)
+	if got.Products[0].Identifier != "10a" || got.Products[2].Identifier != "20a" {
+		t.Errorf("page order wrong: %s … %s", got.Products[0].Identifier, got.Products[2].Identifier)
 	}
 }
 
@@ -95,10 +95,10 @@ func TestSearchPropagatesLaterPageError(t *testing.T) {
 	})
 	got, err := c.Search("x", 2)
 	if err == nil {
-		t.Fatalf("later page error was swallowed; got %d results", len(got))
+		t.Fatalf("later page error was swallowed; got %d results", len(got.Products))
 	}
-	if len(got) != 1 {
-		t.Fatalf("want results collected before the error, got %d", len(got))
+	if len(got.Products) != 1 {
+		t.Fatalf("want results collected before the error, got %d", len(got.Products))
 	}
 }
 
@@ -114,8 +114,8 @@ func TestSearchStopsWhenPageRepeats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 2 {
-		t.Errorf("want 2 unique, got %d", len(got))
+	if len(got.Products) != 2 {
+		t.Errorf("want 2 unique, got %d", len(got.Products))
 	}
 	if hits > 2 { // page 1 + one more that adds nothing, then stop
 		t.Errorf("fetched %d pages, expected to stop after the repeat", hits)
@@ -147,8 +147,8 @@ func TestSearchLimitAndHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 {
-		t.Fatalf("limit not applied: got %d", len(got))
+	if len(got.Products) != 1 {
+		t.Fatalf("limit not applied: got %d", len(got.Products))
 	}
 }
 
@@ -184,8 +184,8 @@ func TestSearchStopsAtThePageCapAndSaysSo(t *testing.T) {
 	if pages > maxPages {
 		t.Errorf("fetched %d pages, want no more than the %d cap", pages, maxPages)
 	}
-	if len(got) != maxPages {
-		t.Errorf("results = %d, want one per capped page (%d)", len(got), maxPages)
+	if len(got.Products) != maxPages {
+		t.Errorf("results = %d, want one per capped page (%d)", len(got.Products), maxPages)
 	}
 	var warned bool
 	for _, d := range diagnostics {
@@ -210,5 +210,49 @@ func TestParseProductsSkipsAMalformedBucket(t *testing.T) {
 
 	if len(got) != 1 || got[0].Identifier != "7" {
 		t.Fatalf("products = %+v, want only the well-formed one", got)
+	}
+}
+
+// The storefront answers every query with products: when it finds no match it
+// widens the query and returns something else. Its own verdict is the only way
+// to tell a find from a suggestion.
+func TestSearchReportsTheStorefrontsVerdict(t *testing.T) {
+	for _, tc := range []struct {
+		searchType string
+		relaxed    bool
+	}{
+		{"original", false},
+		{"refinement", false},
+		{"relaxedWithRelaxation", true},
+		{"relaxedWithoutRelaxation", true},
+	} {
+		t.Run(tc.searchType, func(t *testing.T) {
+			c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = fmt.Fprintf(w, `<div data-x='{"searchType":"%s"}'>%s</div>`,
+					tc.searchType, sampleCard("1", "A", 9.99, "LM"))
+			})
+			found, err := c.Search("x", 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if found.Relaxed != tc.relaxed {
+				t.Errorf("searchType %q → Relaxed %v, want %v", tc.searchType, found.Relaxed, tc.relaxed)
+			}
+			if len(found.Products) != 1 {
+				t.Errorf("products = %d, want the listing kept either way", len(found.Products))
+			}
+		})
+	}
+}
+
+// A page without the marker is not a relaxed search — absent evidence must not
+// warn on every result.
+func TestSearchWithoutTheMarkerIsNotRelaxed(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(sampleCard("1", "A", 9.99, "LM")))
+	})
+	found, err := c.Search("x", 1)
+	if err != nil || found.Relaxed {
+		t.Fatalf("Relaxed = %v, err %v; want false without the marker", found.Relaxed, err)
 	}
 }

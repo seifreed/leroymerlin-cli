@@ -37,3 +37,11 @@ type Product struct {
 	OfferCount int     `json:"total_offer_count"`
 	Offer      Offer   `json:"offer"`
 }
+
+// SearchResult is a listing plus how the storefront matched the query. A search
+// never answers with nothing: when it finds no exact match it widens the query
+// and returns approximations, and Relaxed is how a caller tells the two apart.
+type SearchResult struct {
+	Products []Product
+	Relaxed  bool
+}

@@ -10,12 +10,13 @@ import (
 type fakeCatalog struct {
 	products []domain.Product
 	limit    int
+	relaxed  bool
 	err      error
 }
 
-func (f *fakeCatalog) Search(_ string, limit int) ([]domain.Product, error) {
+func (f *fakeCatalog) Search(_ string, limit int) (domain.SearchResult, error) {
 	f.limit = limit
-	return append([]domain.Product(nil), f.products...), f.err
+	return domain.SearchResult{Products: append([]domain.Product(nil), f.products...), Relaxed: f.relaxed}, f.err
 }
 
 func TestSearchProductsAppliesPolicies(t *testing.T) {
@@ -30,7 +31,7 @@ func TestSearchProductsAppliesPolicies(t *testing.T) {
 	// The policies run after the fetch, so the catalog is asked for a whole page
 	// (limit 0) and the truncation to 1 happens once they have.
 	got, err := SearchProducts(fake, "taladro", SearchOptions{Limit: 1, InStock: true, OnOfferOnly: true, Cheapest: true})
-	if err != nil || len(got) != 1 || got[0].Identifier != "offer" || fake.limit != 0 {
+	if err != nil || len(got.Products) != 1 || got.Products[0].Identifier != "offer" || fake.limit != 0 {
 		t.Fatalf("products=%+v err=%v limit=%d", got, err, fake.limit)
 	}
 }
@@ -47,7 +48,7 @@ func TestSearchProductsRanksBeforeTruncating(t *testing.T) {
 	}}
 
 	got, err := SearchProducts(fake, "taladro", SearchOptions{Limit: 1, Cheapest: true})
-	if err != nil || len(got) != 1 || got[0].Identifier != "cheap" {
+	if err != nil || len(got.Products) != 1 || got.Products[0].Identifier != "cheap" {
 		t.Fatalf("--cheapest --limit 1 = %+v, want the cheapest hit, err %v", got, err)
 	}
 }
@@ -63,8 +64,8 @@ func TestSearchProductsFiltersBeforeTruncating(t *testing.T) {
 	}}
 
 	got, err := SearchProducts(fake, "taladro", SearchOptions{Limit: 2, InStock: true})
-	if err != nil || len(got) != 2 {
-		t.Fatalf("--in-stock --limit 2 returned %d hits, want 2: %+v", len(got), got)
+	if err != nil || len(got.Products) != 2 {
+		t.Fatalf("--in-stock --limit 2 returned %d hits, want 2: %+v", len(got.Products), got)
 	}
 }
 
@@ -99,7 +100,7 @@ func TestSearchProductsCombinesTheStockAndOfferFilters(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[0].Identifier != "offer-ok" {
+	if len(got.Products) != 1 || got.Products[0].Identifier != "offer-ok" {
 		t.Fatalf("results = %+v, want only offer-ok", got)
 	}
 }
@@ -118,7 +119,7 @@ func TestSearchProductsTruncatesAfterRanking(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 1 || got[0].Identifier != "cheap" {
+	if len(got.Products) != 1 || got.Products[0].Identifier != "cheap" {
 		t.Fatalf("results = %+v, want the cheapest overall", got)
 	}
 }
@@ -155,5 +156,21 @@ func TestListCategoryProductsRanksBeforeTruncating(t *testing.T) {
 func TestListCategoryProductsPropagatesTheCatalogFailure(t *testing.T) {
 	if _, err := ListCategoryProducts(&fakeCategories{err: errors.New("boom")}, "x", SearchOptions{}); err == nil {
 		t.Fatal("want the catalog error surfaced")
+	}
+}
+
+// Filtering and ranking never turn a relaxed search into an exact one: the
+// verdict is about the query, not about which hits survived.
+func TestSearchProductsKeepsTheRelaxedVerdict(t *testing.T) {
+	fake := &fakeCatalog{relaxed: true, products: []domain.Product{
+		{Identifier: "a", Offer: domain.Offer{UnitPriceATI: 5, AddToCart: true}},
+		{Identifier: "b", Offer: domain.Offer{UnitPriceATI: 9}},
+	}}
+	got, err := SearchProducts(fake, "no existe", SearchOptions{InStock: true, Cheapest: true, Limit: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Relaxed || len(got.Products) != 1 {
+		t.Fatalf("got %+v, want the policies applied and Relaxed kept", got)
 	}
 }

@@ -98,13 +98,16 @@ func priceRef(cl *client.Client, ref string) (name, price string, cents int64, e
 		}
 		return pd.Name, pd.Price(), c, nil
 	}
-	prods, serr := cl.Search(ref, 0)
+	found, serr := cl.Search(ref, 0)
 	if serr != nil {
 		return "", "", 0, serr
 	}
-	p, ok := domain.CheapestHit(prods)
+	p, ok := domain.CheapestHit(found.Products)
 	if !ok {
 		return "", "", 0, fmt.Errorf("no results for %q", ref)
+	}
+	if found.Relaxed {
+		return "", "", 0, fmt.Errorf("no exact match for %q — the storefront answered with %q; price it by url if that is what you meant", ref, strings.TrimSpace(p.Name))
 	}
 	unitCents, cerr := domain.EurosToCents(p.Offer.UnitPriceATI)
 	if cerr != nil {

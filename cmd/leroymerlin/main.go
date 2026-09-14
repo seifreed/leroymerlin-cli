@@ -118,7 +118,8 @@ SESSION (do this first — every command runs on your browser session):
                           a signed-out one has its own guest cart, invisible in
                           your browser, so they refuse it.
 
-READ COMMANDS:
+READ COMMANDS (a search never comes back empty: when the storefront has no
+match it widens the query, and the CLI says so on stderr):
   search <term...>        full-text product search
                           --limit N    cap results (auto-paginates above one page)
                           --cheapest   rank by price (low → high)

@@ -27,14 +27,42 @@ const dataTmsMarker = `class="dataTms">`
 // listing. limit caps the result count: 0 returns a single page (~48 hits);
 // a limit above one page auto-paginates (the site pages via the `p` query
 // param) until it has `limit` hits, a page adds nothing new, or maxPages is hit.
-func (c *Client) Search(term string, limit int) ([]domain.Product, error) {
-	return c.paginated("/search?q="+url.QueryEscape(term), limit)
+func (c *Client) Search(term string, limit int) (domain.SearchResult, error) {
+	var result domain.SearchResult
+	products, err := c.paginated("/search?q="+url.QueryEscape(term), limit, func(html string) {
+		result.Relaxed = searchWasRelaxed(html)
+	})
+	// paginated returns what it collected before a later page failed; keep it, the
+	// caller decides whether a partial listing is useful.
+	result.Products = products
+	return result, err
+}
+
+// searchWasRelaxed reads the listing page's own verdict on the query. The page
+// states it as `"searchType":"…"`: `original` and `refinement` are real matches,
+// `relaxedWithRelaxation` and `relaxedWithoutRelaxation` mean the storefront
+// dropped or loosened terms to have something to show. Without this, a term the
+// catalogue does not stock comes back as a confident, unrelated product.
+func searchWasRelaxed(html string) bool {
+	const key = `"searchType":"`
+	i := strings.Index(html, key)
+	if i < 0 {
+		return false
+	}
+	rest := html[i+len(key):]
+	end := strings.Index(rest, `"`)
+	if end < 0 {
+		return false
+	}
+	return strings.HasPrefix(rest[:end], "relaxed")
 }
 
 // paginated fetches successive `&p=N` pages of a listing path, deduping products
 // across pages, until it has `limit` hits (0 = one page only), a page yields no
 // new products, or maxPages is reached.
-func (c *Client) paginated(path string, limit int) ([]domain.Product, error) {
+// onFirstPage, when non-nil, sees page one's HTML — the search verdict lives
+// there and nowhere in the product blobs.
+func (c *Client) paginated(path string, limit int, onFirstPage func(html string)) ([]domain.Product, error) {
 	sep := "?"
 	if strings.Contains(path, "?") {
 		sep = "&"
@@ -52,6 +80,9 @@ func (c *Client) paginated(path string, limit int) ([]domain.Product, error) {
 				return nil, err
 			}
 			return all, fmt.Errorf("fetch page %d of %s: %w", page, path, err)
+		}
+		if page == 1 && onFirstPage != nil {
+			onFirstPage(html)
 		}
 		added := 0
 		for _, p := range parseProducts(html) {

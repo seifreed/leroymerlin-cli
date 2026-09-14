@@ -6,7 +6,7 @@ import (
 
 // CatalogReader is the catalog operation needed by the search use case.
 type CatalogReader interface {
-	Search(term string, limit int) ([]domain.Product, error)
+	Search(term string, limit int) (domain.SearchResult, error)
 }
 
 // SearchOptions controls post-fetch search policies.
@@ -40,13 +40,15 @@ func (o SearchOptions) fetchLimit() int {
 	return 0 // one page
 }
 
-// SearchProducts fetches, filters, ranks, and truncates catalog results.
-func SearchProducts(reader CatalogReader, term string, options SearchOptions) ([]domain.Product, error) {
-	products, err := reader.Search(term, options.fetchLimit())
+// SearchProducts fetches, filters, ranks, and truncates catalog results. The
+// storefront's own verdict on the query rides along: filtering never turns a
+// relaxed search into an exact one.
+func SearchProducts(reader CatalogReader, term string, options SearchOptions) (domain.SearchResult, error) {
+	result, err := reader.Search(term, options.fetchLimit())
 	if err != nil {
-		return nil, err
+		return domain.SearchResult{}, err
 	}
-	return narrow(products, options), nil
+	return domain.SearchResult{Products: narrow(result.Products, options), Relaxed: result.Relaxed}, nil
 }
 
 // CategoryReader is the catalog section listing needed by the categories use case.

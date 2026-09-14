@@ -83,7 +83,7 @@ func parseSubcategories(html, parent string) []domain.Category {
 // iluminacion/" path — all normalized. limit caps the result count: 0 returns a
 // single page; a larger limit auto-paginates (same `p` query param as search).
 func (c *Client) CategoryProducts(path string, limit int) ([]domain.Product, error) {
-	return c.paginated(normalizeCategoryPath(path), limit)
+	return c.paginated(normalizeCategoryPath(path), limit, nil)
 }
 
 // normalizeCategoryPath turns any accepted category reference into the canonical

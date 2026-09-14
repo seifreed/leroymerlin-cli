@@ -150,6 +150,10 @@ limit). A blocked line exits non-zero with `error: line … exceeds --max …` �
   user chooses a slot and pays in the browser.
 - **URL vs ref.** `product` / `cart add` take the **URL** (the full product slug); `cart set` / `brands`
   / `cart get` use the short **ref**. Take both from a search hit (`url`, `identifier`).
+- **A search never returns nothing.** With no match the storefront widens the query and answers with
+  unrelated products. The CLI reads the page's verdict (`searchType`): `search`/`brands` warn on
+  stderr, `batch --json` sets `"relaxed": true` on the hit, and `total` refuses the line
+  (`no exact match for …`) instead of pricing it. Treat a relaxed hit as **not found**, not as a match.
 - **Soft throttling looks like a 404.** Back-to-back requests (a search+add loop over a list) make
   product pages answer HTTP 404 with an HTML error page while `search` keeps working. `cart add` and
   `product` report `no product found at …`; pace the loop and retry the item once rather than treating

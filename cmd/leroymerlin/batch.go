@@ -43,7 +43,7 @@ func cmdBatch(args []string) error {
 		fmt.Fprintln(os.Stderr, "no term has a product on offer")
 		return nil
 	}
-	w := 0
+	w, relaxed := 0, 0
 	for _, h := range out {
 		if len(h.Term) > w {
 			w = len(h.Term)
@@ -58,7 +58,14 @@ func cmdBatch(args []string) error {
 		if h.BrandMatch == "none" {
 			line += "  ⚠ marca preferida no disponible"
 		}
+		if h.Relaxed {
+			line += "  ⚠ sin coincidencia exacta (sugerencia de la tienda)"
+			relaxed++
+		}
 		fmt.Printf("• %-*s → %s\n", w, h.Term, line)
+	}
+	if relaxed > 0 {
+		fmt.Fprintf(os.Stderr, "%d term(s) had no exact match — the storefront answered with something else; check them before pricing\n", relaxed)
 	}
 	if missing > 0 {
 		return fmt.Errorf("%d of %d terms returned no product", missing, len(terms))

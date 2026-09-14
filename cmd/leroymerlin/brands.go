@@ -24,11 +24,12 @@ func cmdBrands(args []string) error {
 		return fmt.Errorf("usage: leroymerlin brands <term...>  (lists the brands selling that product type)")
 	}
 	cl := newClient()
-	prods, err := application.SearchProducts(cl, term, application.SearchOptions{})
+	found, err := application.SearchProducts(cl, term, application.SearchOptions{})
 	if err != nil {
 		return err
 	}
-	tallies := domain.TallyBrands(prods)
+	warnRelaxedSearch(found, term)
+	tallies := domain.TallyBrands(found.Products)
 	if *limit > 0 && len(tallies) > *limit {
 		tallies = tallies[:*limit]
 	}

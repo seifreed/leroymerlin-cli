@@ -980,3 +980,48 @@ func TestCategoriesSubsStructuredOutputFailureIsReported(t *testing.T) {
 		t.Error("want a non-zero exit when stdout cannot be written")
 	}
 }
+
+// relaxedCardHTML is the same listing as cardHTML, on a page whose own verdict
+// says the query had no exact match.
+const relaxedCardHTML = `<div data-tms='{"searchType":"relaxedWithoutRelaxation"}'></div>` + cardHTML
+
+// The storefront answers a term it does not stock with an unrelated product, so
+// search says on stderr that these are suggestions — silence is how a wrong
+// product reaches a plan and then the cart.
+func TestSearchWarnsWhenTheStorefrontWidenedTheQuery(t *testing.T) {
+	withStubServer(t, relaxedCardHTML)
+	errs := captureStderr(t, func() {
+		if code := run([]string{"search", "tirafondos inexistentes"}); code != 0 {
+			t.Errorf("exit = %d", code)
+		}
+	})
+	if !strings.Contains(errs, "no exact match") {
+		t.Errorf("stderr = %q, want the relaxed search named", errs)
+	}
+}
+
+func TestSearchStaysQuietOnAnExactMatch(t *testing.T) {
+	withStubServer(t, cardHTML)
+	errs := captureStderr(t, func() {
+		if code := run([]string{"search", "taladro"}); code != 0 {
+			t.Errorf("exit = %d", code)
+		}
+	})
+	if strings.Contains(errs, "no exact match") {
+		t.Errorf("stderr = %q, want no warning for a real match", errs)
+	}
+}
+
+// `total` prices a term from its cheapest hit, so a relaxed one would put an
+// unrelated product's price in the basket with a confident total.
+func TestTotalRefusesToPriceARelaxedTerm(t *testing.T) {
+	withStubServer(t, relaxedCardHTML)
+	out := captureStdout(t, func() {
+		if code := run([]string{"total", "tirafondos inexistentes"}); code == 0 {
+			t.Error("want a non-zero exit when a line could not be priced")
+		}
+	})
+	if !strings.Contains(out, "no exact match") {
+		t.Errorf("output = %q, want the line reported unpriced", out)
+	}
+}

@@ -112,6 +112,8 @@ The clearance **rotates and expires**, and the cart endpoints are scored more st
 
 **Signed in, not just recognised.** A cookie lifted from a browser that was *not* signed in still reads, but its cart is a guest cart: items land in it, the storefront answers `2xx`, and your own cart page stays empty. So `cart` and `checkout` refuse a session without an account and tell you to sign in and run `login` again; `search`, `product`, `batch` and the rest keep working.
 
+**A search never comes back empty.** When the storefront has no match it widens the query and answers with something else, so a term it does not stock returns a confident, unrelated product. The CLI reads the page's own verdict: `search` and `brands` warn on stderr (`no exact match for …`), `batch` marks the line `⚠ sin coincidencia exacta` and `total` refuses to price it rather than putting a wallpaper roll in your basket total.
+
 ### Commands
 
 | Command | Description |
