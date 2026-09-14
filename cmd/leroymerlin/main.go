@@ -147,6 +147,7 @@ CART & CHECKOUT:
                           --max <eur>  refuse a line over <eur> (spending guard;
                           also LEROYMERLIN_MAX_EUR or [limits] max_eur in config)
   cart set <ref> <qty>    set a product's absolute quantity (0 removes it)
+                          --max <eur>  same spending guard as cart add
   cart clear              remove every line from the cart
   checkout [status]       cart total + whether it can be checked out (blockers)
   checkout addresses      your saved delivery addresses

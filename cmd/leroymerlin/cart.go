@@ -76,7 +76,9 @@ func printCart(cart *domain.CartDetail) {
 // product is identified by its reflm (the [ref] shown by search / cart get).
 func cartSet(args []string) error {
 	fs, cf := newCommonFlags("cart set")
+	maxFlag := fs.Float64("max", -1, "refuse a line over this many euros (also LEROYMERLIN_MAX_EUR / [limits] max_eur)")
 	parseFlags(fs, args)
+	maxSet := flagWasSet(fs, "max")
 	rest := fs.Args()
 	if len(rest) != 2 {
 		return fmt.Errorf("usage: leroymerlin cart set <ref> <qty>  (ref is the [number] from `cart get`; qty 0 removes)")
@@ -90,6 +92,22 @@ func cartSet(args []string) error {
 	cl, err := requireSession("cart writes")
 	if err != nil {
 		return err
+	}
+	maxEUR, err := resolveMax(*maxFlag, maxSet)
+	if err != nil {
+		return err
+	}
+	// Spending guard: `cart set` raises a quantity as freely as `cart add` adds
+	// one, so it has to answer to the same cap. The cart's own line is the price
+	// source — it is what the storefront bills.
+	if maxEUR > 0 && qty > 0 {
+		cart, cerr := cl.Cart()
+		if cerr != nil {
+			return cleanCartErr(cerr)
+		}
+		if err := enforceMaxCartLine(cart, ref, qty, maxEUR); err != nil {
+			return err
+		}
 	}
 	updated, err := application.SetCartQuantity(cl, cl, ref, qty)
 	if err != nil {
@@ -150,10 +168,7 @@ func cartAdd(args []string) error {
 	fs, cf := newCommonFlags("cart add")
 	maxFlag := fs.Float64("max", -1, "refuse a line over this many euros (also LEROYMERLIN_MAX_EUR / [limits] max_eur)")
 	parseFlags(fs, args)
-	maxSet := false
-	fs.Visit(func(f *flag.Flag) {
-		maxSet = maxSet || f.Name == "max"
-	})
+	maxSet := flagWasSet(fs, "max")
 
 	rest := fs.Args()
 	if len(rest) < 1 {
@@ -212,6 +227,17 @@ func cartAdd(args []string) error {
 	return nil
 }
 
+// flagWasSet reports whether the user passed the named flag, as opposed to it
+// holding its default. The spending cap needs the difference: an unset --max
+// falls through to the env var and the config, an explicit one does not.
+func flagWasSet(fs *flag.FlagSet, name string) bool {
+	set := false
+	fs.Visit(func(f *flag.Flag) {
+		set = set || f.Name == name
+	})
+	return set
+}
+
 // enforceMaxLine refuses a cart write whose line total would exceed maxEUR euros.
 // A zero or negative maxEUR disables the guard. Prices are compared in integer
 // cents so the check never drifts.
@@ -226,7 +252,34 @@ func enforceMaxLine(detail *domain.ProductDetail, qty int, maxEUR float64) error
 	if err != nil {
 		return fmt.Errorf("cannot enforce --max: %w", err)
 	}
-	line, err := domain.MultiplyCents(unit, float64(qty))
+	return enforceMaxUnits(unit, qty, maxEUR)
+}
+
+// enforceMaxCartLine prices a `cart set` from the cart's own line: its Price is
+// the line total the storefront bills for its current quantity, so the unit is
+// that divided by it. A ref that is not in the cart is left to the use case,
+// which has the error the user needs.
+func enforceMaxCartLine(cart *domain.CartDetail, ref string, qty int, maxEUR float64) error {
+	for _, line := range cart.Lines {
+		if line.Reflm != ref {
+			continue
+		}
+		if line.Quantity <= 0 {
+			return fmt.Errorf("cannot enforce --max: cart line %s has no quantity to price from", ref)
+		}
+		total, err := domain.EurosToCents(line.Price)
+		if err != nil {
+			return fmt.Errorf("cannot enforce --max: %w", err)
+		}
+		return enforceMaxUnits(total/int64(line.Quantity), qty, maxEUR)
+	}
+	return nil
+}
+
+// enforceMaxUnits is the shared cap check: unit price × quantity against the cap,
+// all in integer cents so it never drifts.
+func enforceMaxUnits(unitCents int64, qty int, maxEUR float64) error {
+	line, err := domain.MultiplyCents(unitCents, float64(qty))
 	if err != nil {
 		return fmt.Errorf("cannot enforce --max: %w", err)
 	}
@@ -235,7 +288,7 @@ func enforceMaxLine(detail *domain.ProductDetail, qty int, maxEUR float64) error
 		return fmt.Errorf("cannot enforce --max: %w", err)
 	}
 	if line > capCents {
-		return fmt.Errorf("line %s€ exceeds --max %.2f€ — not added (raise --max to override)", domain.FormatCents(line), maxEUR)
+		return fmt.Errorf("line %s€ exceeds --max %.2f€ — not written (raise --max to override)", domain.FormatCents(line), maxEUR)
 	}
 	return nil
 }

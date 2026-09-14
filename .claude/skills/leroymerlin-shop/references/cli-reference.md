@@ -91,7 +91,7 @@ when it caches one. Reads are unaffected.
 
 | `leroymerlin cart get` | Show the cart: lines (`[ref] name — qty × = line€`) + totals. `--json` for the structured cart. |
 | `leroymerlin cart add <url> [qty]` | Add a product by its **URL** (from search). Additive. `--max <eur>` per-line spending cap. Errors if the cart does not grow — a 2xx the storefront discards is not an add. |
-| `leroymerlin cart set <ref> <qty>` | Set a product's absolute qty by **ref** (`0` removes). Idempotent — safe to re-run a whole plan. |
+| `leroymerlin cart set <ref> <qty>` | Set a product's absolute qty by **ref** (`0` removes). Idempotent — safe to re-run a whole plan. `--max <eur>` caps the resulting line, priced from the cart's own unit price; `0` is never over the cap. |
 | `leroymerlin cart clear` | Empty the cart, then re-read it: a line that survives its delete is an error, not a cleared cart. |
 | `leroymerlin checkout [status]` | Read-only readiness: total (items + shipping), `ready`, and the blockers. |
 | `leroymerlin checkout slots` | Delivery/pickup options for the cart: `mode`, `date`, `amount` (★ = selected). |
@@ -140,7 +140,7 @@ choice + payment in the browser.
 
 ## Spending guard
 
-`--max <eur>` on `cart add` refuses a line over the cap **before writing** (also `LEROYMERLIN_MAX_EUR`
+`--max <eur>` on `cart add` **and `cart set`** refuses a line over the cap **before writing** (also `LEROYMERLIN_MAX_EUR`
 env, or `[limits] max_eur` in `~/.leroymerlin/config.toml`; precedence flag > env > config; `0`/unset = no
 limit). A blocked line exits non-zero with `error: line … exceeds --max …` — stop-and-report.
 

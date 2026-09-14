@@ -486,3 +486,41 @@ func TestCheckoutStructuredOutputFailuresAreReported(t *testing.T) {
 		srv.Close()
 	}
 }
+
+// `cart set` raises a quantity as freely as `cart add` adds one — 9999 units of
+// a 0.59€ tape is 5 899€ — so it answers to the same cap, priced from the cart's
+// own line (13.99€ × 5 here).
+func TestCartSetRefusesOverTheCap(t *testing.T) {
+	puts, _ := cartMutStub(t)
+	if code := run([]string{"cart", "set", "83085630", "5", "--max", "20"}); code != 1 {
+		t.Errorf("over-cap exit = %d, want 1", code)
+	}
+	if len(*puts) != 0 {
+		t.Errorf("nothing must be written over the cap, got %v", *puts)
+	}
+}
+
+func TestCartSetUnderTheCapWrites(t *testing.T) {
+	puts, _ := cartMutStub(t)
+	if code := run([]string{"cart", "set", "83085630", "5", "--max", "100"}); code != 0 {
+		t.Errorf("under-cap exit = %d, want 0", code)
+	}
+	if len(*puts) != 1 {
+		t.Errorf("expected one PUT under the cap, got %v", *puts)
+	}
+}
+
+// The cap comes from the environment too, and removing a line is never over it.
+func TestCartSetCapFromEnvAndZeroAlwaysRemoves(t *testing.T) {
+	_, deletes := cartMutStub(t)
+	t.Setenv("LEROYMERLIN_MAX_EUR", "1")
+	if code := run([]string{"cart", "set", "83085630", "3"}); code != 1 {
+		t.Errorf("env cap exit = %d, want 1", code)
+	}
+	if code := run([]string{"cart", "set", "83085630", "0"}); code != 0 {
+		t.Errorf("removal exit = %d, want 0 even under a 1€ cap", code)
+	}
+	if len(*deletes) != 1 {
+		t.Errorf("qty 0 should DELETE, got %v", *deletes)
+	}
+}

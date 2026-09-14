@@ -30,7 +30,7 @@ This touches a real account and real money, so:
    (each list/photo item → the exact product you picked: `[ref] name — price`, with its URL) and wait
    for an explicit OK. Product matching is fuzzy (a photo adds a second fuzzy step), so this is where
    the user catches a wrong model, size, voltage or quantity — cheap now, annoying after the cart is full.
-2. **Always cap spend with `--max`.** Put a hard euro ceiling on every `cart add` so a wrong match or a
+2. **Always cap spend with `--max`.** Put a hard euro ceiling on every `cart add` and every `cart set` so a wrong match or a
    fat-fingered quantity can't run up the order. Use the user's stated budget, else the agreed plan
    total per line with a little margin. A line over the cap fails with `error: line … exceeds --max …`
    and a non-zero exit — treat that as **stop-and-report**, don't raise the cap unless the user does.
@@ -207,7 +207,9 @@ leroymerlin cart get                      # verify lines + totals
 After items are in, adjust by **ref** (the `[number]` shown by `cart get` / search): `cart set <ref>
 <qty>` sets the **absolute** quantity (`0` removes the line), and is idempotent — re-running a plan
 converges instead of double-adding. `cart clear` empties the cart (check `cart get` first so you don't
-wipe items the user added himself). `--max` is a **per-line** cap, not a basket total.
+wipe items the user added himself). **Pass `--max` to `cart set` too**: raising a quantity spends
+exactly like adding one (9999 × a 0.59€ tape is 5 899€), and the cap is what stops a fat-fingered
+quantity — `0` is never over it. `--max` is a **per-line** cap, not a basket total.
 
 > The cart backend can lag a write by a beat — if a `cart get` right after a write looks stale, re-run
 > it; it converges in a second or two. If a cart command returns the DataDome 403 hint, the cookie

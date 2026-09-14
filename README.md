@@ -141,7 +141,7 @@ The clearance **rotates and expires**, and the cart endpoints are scored more st
 |--------|-------------|
 | `--json` | emit raw JSON (data → stdout, logs → stderr) |
 | `--toon` | emit [TOON](https://github.com/toon-format/toon-go) instead of JSON (fewer tokens; for agents) |
-| `--max <eur>` | `cart add` only: refuse a line over the cap |
+| `--max <eur>` | `cart add` / `cart set`: refuse a line over the cap |
 
 Flags may appear anywhere after the command, and `--` ends flag parsing.
 
@@ -174,7 +174,7 @@ cookie = "…"                    # a session to fall back on; `login` normally 
 |-----|-------------|
 | `LEROYMERLIN_BASE_URL` | override the host (debugging proxy, mock, staging) |
 | `LEROYMERLIN_CONFIG_DIR` | override `~/.leroymerlin` |
-| `LEROYMERLIN_MAX_EUR` | spending cap for `cart add`; `--max` wins over it, and it wins over `[limits] max_eur` |
+| `LEROYMERLIN_MAX_EUR` | spending cap for `cart add` / `cart set`; `--max` wins over it, and it wins over `[limits] max_eur` |
 
 ---
 
