@@ -466,3 +466,25 @@ func TestLivePriceAndPageOfferIDEdges(t *testing.T) {
 		t.Errorf("pageOfferID = %q, want empty when the page names no offer", got)
 	}
 }
+
+// The seller is only meaningful when read from the offer the cart will bill: a
+// product page lists others (a second seller, a related product).
+func TestLiveSellerReadsTheNamedOffersSeller(t *testing.T) {
+	html := `<script>{"offer_id":"aaaa111122223333","seller_name":"HOGARCONECTADO","seller_type":"3P","unitprice_ati":278.99}` +
+		`,{"offer_id":"bbbb444455556666","seller_name":"Leroy Merlin","seller_type":"1P","unitprice_ati":299}</script>`
+
+	name, kind := liveSeller(html, "aaaa111122223333")
+	if name != "HOGARCONECTADO" || kind != "3P" {
+		t.Errorf("liveSeller = %q/%q, want the named offer's seller", name, kind)
+	}
+	name, kind = liveSeller(html, "bbbb444455556666")
+	if name != "Leroy Merlin" || kind != "1P" {
+		t.Errorf("liveSeller = %q/%q, want the second offer's seller", name, kind)
+	}
+	if name, kind := liveSeller(html, ""); name != "" || kind != "" {
+		t.Errorf("liveSeller without an id = %q/%q, want empty", name, kind)
+	}
+	if name, kind := liveSeller(html, "ffff000000000000"); name != "" || kind != "" {
+		t.Errorf("liveSeller for an absent offer = %q/%q, want empty", name, kind)
+	}
+}

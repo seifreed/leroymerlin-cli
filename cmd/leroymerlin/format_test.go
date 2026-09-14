@@ -261,3 +261,39 @@ func TestEmitTOONReportsAnUnencodableValue(t *testing.T) {
 		t.Fatal("emitStructured should surface the TOON failure")
 	}
 }
+
+// The page's structured data says OutOfStock for a product with 119 units in
+// store, so the per-channel stock is what the availability line reports —
+// and the seller of a marketplace offer is named, since it ships on its
+// own terms.
+func TestDetailLinesPrefersChannelStockAndNamesTheSeller(t *testing.T) {
+	d := &domain.ProductDetail{
+		Name: "Cinta", SKU: "1",
+		Offers:     []domain.ProductOffer{{Price: "0.59", Availability: "http://schema.org/OutOfStock"}},
+		Seller:     "HOGARCONECTADO",
+		SellerType: "3P",
+		Deliveries: []domain.DeliveryOption{{Type: "storeDelivery", Stock: 119}},
+	}
+	out := detailLines(d)
+	if !strings.Contains(out, "disponible:   InStock (stock por canal)") {
+		t.Errorf("output = %q, want the channel stock to decide availability", out)
+	}
+	if !strings.Contains(out, "vendedor:     HOGARCONECTADO (marketplace") {
+		t.Errorf("output = %q, want the marketplace seller named", out)
+	}
+
+	empty := &domain.ProductDetail{
+		Name: "Taladro", SKU: "2",
+		Offers:     []domain.ProductOffer{{Price: "219", Availability: "http://schema.org/InStock"}},
+		Seller:     "Leroy Merlin",
+		SellerType: "1P",
+		Deliveries: []domain.DeliveryOption{{Type: "storeDelivery", Stock: 0}},
+	}
+	out = detailLines(empty)
+	if !strings.Contains(out, "disponible:   OutOfStock (stock por canal)") {
+		t.Errorf("output = %q, want an empty channel to read OutOfStock", out)
+	}
+	if strings.Contains(out, "marketplace") {
+		t.Errorf("output = %q, want no marketplace note for a 1P seller", out)
+	}
+}

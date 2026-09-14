@@ -24,7 +24,17 @@ var (
 	atcFieldRE = regexp.MustCompile(`name="(reflm|offerId|contextCode)"\s+value="([^"]*)"`)
 	// unitPriceRE matches the tax-included price inside an offer object.
 	unitPriceRE = regexp.MustCompile(`"unitprice_ati"\s*:\s*([0-9]+(?:\.[0-9]+)?)`)
+	// sellerNameRE and sellerTypeRE match who sells the offer: "1P" is Leroy
+	// Merlin itself, "3P" a marketplace seller shipping on their own terms.
+	sellerNameRE = regexp.MustCompile(`"seller_name"\s*:\s*"([^"]*)"`)
+	sellerTypeRE = regexp.MustCompile(`"seller_type"\s*:\s*"([^"]*)"`)
 )
+
+// offerWindow is how far past an offer's id its own fields are read. The object
+// serialises its keys alphabetically, so seller_* and unitprice_ati follow
+// offer_id inside it — and the window stops the read before the next offer,
+// which on a product page is a related or sponsored product.
+const offerWindow = 1200
 
 // livePrice returns the price the storefront bills from: the unitprice_ati of
 // the offer the add-to-cart form names. The JSON-LD on the same page can lag it
@@ -40,16 +50,43 @@ func livePrice(html, offerID string) string {
 	if i < 0 {
 		return ""
 	}
-	if m := unitPriceRE.FindStringSubmatch(html[i:min(i+800, len(html))]); m != nil {
+	if m := unitPriceRE.FindStringSubmatch(html[i:min(i+offerWindow, len(html))]); m != nil {
 		return m[1]
 	}
 	return ""
 }
 
-// applyLivePrice overwrites the detail's first offer price with the live one.
+// liveSeller reads who sells the offer the add-to-cart form names, from that
+// same offer object. A product page lists other offers — related products, a
+// second seller for the same item — so the seller is only meaningful when it is
+// read from the offer the cart will bill.
+func liveSeller(html, offerID string) (name, kind string) {
+	if offerID == "" {
+		return "", ""
+	}
+	i := strings.Index(html, `"offer_id":"`+offerID+`"`)
+	if i < 0 {
+		return "", ""
+	}
+	window := html[i:min(i+offerWindow, len(html))]
+	if m := sellerNameRE.FindStringSubmatch(window); m != nil {
+		name = scrubText(m[1])
+	}
+	if m := sellerTypeRE.FindStringSubmatch(window); m != nil {
+		kind = scrubText(m[1])
+	}
+	return name, kind
+}
+
+// applyLivePrice overwrites the detail's first offer price with the live one,
+// and records who sells it.
 func applyLivePrice(detail *domain.ProductDetail, html, offerID string) {
+	if detail == nil {
+		return
+	}
+	detail.Seller, detail.SellerType = liveSeller(html, offerID)
 	price := livePrice(html, offerID)
-	if price == "" || detail == nil {
+	if price == "" {
 		return
 	}
 	if len(detail.Offers) == 0 {

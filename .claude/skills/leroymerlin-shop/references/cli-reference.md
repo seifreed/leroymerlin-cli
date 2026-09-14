@@ -154,6 +154,10 @@ limit). A blocked line exits non-zero with `error: line … exceeds --max …` �
   so a vague or compound term (`cable manguera`) resolves to whatever cheap accessory the listing
   contains — with no relaxation flag, because the storefront believes it matched. One product per term,
   with a spec, and check the price band.
+- **`offers[].availability` lags; `deliveries[].stock` does not.** The schema.org block says
+  `OutOfStock` for a product with 119 units in store, the same way it lags the price. The human
+  `disponible:` line is derived from the channels; parse them, not the schema value. `seller` /
+  `sellerType` name who bills the offer (`3P` = marketplace, its price and seller rotate).
 - **A search never returns nothing.** With no match the storefront widens the query and answers with
   unrelated products. The CLI reads the page's verdict (`searchType`): `search`/`brands` warn on
   stderr, `batch --json` sets `"relaxed": true` on the hit, and `total` refuses the line

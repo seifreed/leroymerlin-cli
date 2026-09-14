@@ -164,10 +164,18 @@ detail view adds two things `search`/`batch` don't:
 - **`características`** (specs: potencia, diámetro, voltaje, material, medidas) — confirm the match is the
   right 8 mm / 18 V / cromo variant, not a lookalike. Cheap insurance on a taladro, grifo or anything
   dimensional.
+- **`vendedor`** — who ships it. `1P` is Leroy Merlin; a marketplace name (`3P`) ships on its own
+  terms and its **offer rotates**: the same 100 l water heater was 274,00€ from one seller and
+  278,99€ from another a few hours later. Re-price a plan that has been sitting before filling the cart.
 - **`disponibilidad`** (per-channel stock for the user's store: recogida en tienda / envío a domicilio /
   punto de recogida, each with stock + cost + lead time). If the user wants **store pickup**, check the
   *recogida en tienda* line has stock at their store; if it's 0 but home delivery has stock, say so. The
   store follows their session cookie (see "Authenticate").
+
+**Never read stock from the structured data.** The page's schema.org block says `OutOfStock` for a
+product with 119 units in store — it lags exactly like its price does. `product` derives its
+`disponible:` line from the per-channel stock for that reason; when you parse `--json`, read
+`deliveries[].stock`, never `offers[].availability`.
 
 If the product description conflicts with its technical specifications, treat the requirement as
 **unverified**. Do not add it on the strength of marketing copy; show the conflict and ask the user to

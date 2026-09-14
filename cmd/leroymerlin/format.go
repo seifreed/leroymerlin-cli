@@ -72,7 +72,22 @@ func detailLines(d *domain.ProductDetail) string {
 		}
 		fmt.Fprintf(&b, "  precio:       %s %s\n", price, d.Currency())
 	}
-	if av := d.Availability(); av != "" {
+	if d.Seller != "" {
+		seller := d.Seller
+		if d.SellerType == "3P" {
+			seller += " (marketplace — envío y condiciones del vendedor)"
+		}
+		fmt.Fprintf(&b, "  vendedor:     %s\n", seller)
+	}
+	// The page's structured data lags: it says OutOfStock for a product with 119
+	// units in store. When the page lists per-channel stock, that is the answer.
+	if len(d.Deliveries) > 0 {
+		state := "InStock"
+		if d.OutOfStock() {
+			state = "OutOfStock"
+		}
+		fmt.Fprintf(&b, "  disponible:   %s (stock por canal)\n", state)
+	} else if av := d.Availability(); av != "" {
 		fmt.Fprintf(&b, "  disponible:   %s\n", av)
 	}
 	if d.Rating != nil && d.Rating.Value != "" {

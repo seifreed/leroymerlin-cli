@@ -12,6 +12,8 @@ type ProductDetail struct {
 	Offers      []ProductOffer   `json:"offers"`
 	Rating      *ProductRating   `json:"aggregateRating"`
 	Image       string           `json:"image"`
+	Seller      string           `json:"seller,omitempty"`
+	SellerType  string           `json:"sellerType,omitempty"`
 	Specs       []Spec           `json:"specs,omitempty"`
 	Deliveries  []DeliveryOption `json:"deliveries,omitempty"`
 	URL         string           `json:"-"`
