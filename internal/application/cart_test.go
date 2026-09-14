@@ -17,10 +17,15 @@ type fakeCart struct {
 	writeErr   error
 	// ignoreDeletes mimics the storefront accepting a delete and discarding it.
 	ignoreDeletes bool
+	// readErrAfter fails the Nth read and every later one, for the read-back.
+	readErrAfter int
 }
 
 func (f *fakeCart) Cart() (*domain.CartDetail, error) {
 	f.reads++
+	if f.readErrAfter > 0 && f.reads >= f.readErrAfter {
+		return nil, errors.New("read failed")
+	}
 	return f.cart, f.readErr
 }
 
@@ -150,5 +155,17 @@ func TestClearCartOnAnEmptyCartRemovesNothing(t *testing.T) {
 	n, err := ClearCart(fake, fake)
 	if err != nil || n != 0 {
 		t.Fatalf("ClearCart = %d, %v; want 0, nil", n, err)
+	}
+}
+
+// The read-back is the proof the cart emptied; when it fails there is no proof,
+// and reporting the deletes as a cleared cart would be a guess.
+func TestClearCartSurfacesAFailedReadBack(t *testing.T) {
+	fake := &fakeCart{
+		cart:         &domain.CartDetail{Lines: []domain.CartLine{{LineID: "line-1"}}},
+		readErrAfter: 2,
+	}
+	if count, err := ClearCart(fake, fake); err == nil {
+		t.Fatalf("count=%d err=nil, want the failed read-back surfaced", count)
 	}
 }

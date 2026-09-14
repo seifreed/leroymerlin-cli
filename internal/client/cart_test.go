@@ -432,3 +432,53 @@ func TestAddToCartGivesUpWhenANonEmptyCartDoesNotGrow(t *testing.T) {
 		t.Errorf("error = %v, want it to say the cart did not change", err)
 	}
 }
+
+// The baseline read is what the growth check measures against, so a cart that
+// cannot be read before the write is an error, not an assumed empty cart.
+func TestAddToCartSurfacesAFailedBaselineRead(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == cartDataPath {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		_, _ = w.Write([]byte(`{}`))
+	})
+	if _, err := c.AddToCart("ref", "offer", "058", 1); err == nil {
+		t.Fatal("want the unreadable baseline surfaced")
+	}
+}
+
+// And a summary that cannot be read after the write is equally not a success.
+func TestAddToCartSurfacesAFailedSummaryRead(t *testing.T) {
+	reads := 0
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == cartDataPath {
+			reads++
+			if reads > 1 {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+			_, _ = w.Write([]byte(`{"quantity":0,"order":"o1"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{}`))
+	})
+	if _, err := c.AddToCart("ref", "offer", "058", 1); err == nil {
+		t.Fatal("want the unreadable summary surfaced")
+	}
+}
+
+// The write itself failing is not the same as the cart not changing: surface it
+// as the rejection it is, before any polling.
+func TestAddToCartSurfacesARejectedWrite(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == cartAddPath {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		_, _ = w.Write([]byte(`{"quantity":0,"order":"o1"}`))
+	})
+	if _, err := c.AddToCart("ref", "offer", "058", 1); err == nil {
+		t.Fatal("want the rejected write surfaced")
+	}
+}

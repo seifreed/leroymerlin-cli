@@ -256,3 +256,10 @@ func TestSearchWithoutTheMarkerIsNotRelaxed(t *testing.T) {
 		t.Fatalf("Relaxed = %v, err %v; want false without the marker", found.Relaxed, err)
 	}
 }
+
+// A truncated marker is not a verdict: the parser must not read past it.
+func TestSearchWasRelaxedIgnoresATruncatedMarker(t *testing.T) {
+	if searchWasRelaxed(`{"searchType":"relaxed`) {
+		t.Error("an unterminated value must not count as a verdict")
+	}
+}

@@ -600,3 +600,118 @@ func TestCartAddRefusalNamesTheCapSource(t *testing.T) {
 		t.Errorf("error = %v, want the env var named as the cap's source", err)
 	}
 }
+
+// enforceMaxCartLine prices the new quantity from the cart's own line, and
+// refuses rather than guesses when it cannot: a cap that silently skips is the
+// one outcome a spending guard must never produce.
+func TestEnforceMaxCartLine(t *testing.T) {
+	line := func(qty int, price float64) *domain.CartDetail {
+		return &domain.CartDetail{Lines: []domain.CartLine{{Reflm: "ref", Quantity: qty, Price: price}}}
+	}
+	cap5 := spendingCap{EUR: 5, Source: "--max"}
+
+	// The line is 2 × 1.00€, so the unit is a euro: six of them clear the cap,
+	// five land exactly on it.
+	if err := enforceMaxCartLine(line(2, 2.00), "ref", 6, cap5); err == nil ||
+		!strings.Contains(err.Error(), "exceeds") {
+		t.Errorf("6 × 1.00€ over a 5€ cap = %v, want a refusal", err)
+	}
+	if err := enforceMaxCartLine(line(2, 2.00), "ref", 5, cap5); err != nil {
+		t.Errorf("5 × 1.00€ exactly at the cap = %v, want nil", err)
+	}
+	// A ref that is not in the cart is the use case's error to report, not ours.
+	if err := enforceMaxCartLine(line(2, 2.00), "otro", 100, cap5); err != nil {
+		t.Errorf("unknown ref = %v, want nil (left to the use case)", err)
+	}
+	// A line with no quantity cannot be priced, and an unrepresentable one
+	// cannot be converted: both block the write.
+	if err := enforceMaxCartLine(line(0, 2.00), "ref", 1, cap5); err == nil {
+		t.Error("a line without quantity must block the write")
+	}
+	if err := enforceMaxCartLine(line(1, math.Inf(1)), "ref", 1, cap5); err == nil {
+		t.Error("an unrepresentable line price must block the write")
+	}
+}
+
+// The cap needs the cart to price the new line, so a cart it cannot read stops
+// the write instead of letting it through uncapped.
+func TestCartSetSurfacesAnUnreadableCart(t *testing.T) {
+	stubEnvServing(t, testCookie, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	})
+	if code := run([]string{"cart", "set", "83085630", "2", "--max", "50"}); code == 0 {
+		t.Error("want a non-zero exit when the cart cannot be read")
+	}
+}
+
+// The rotated cookie is written back after every cart command; a config dir that
+// cannot be written must surface rather than pass silently.
+func TestCartClearSurfacesAFailedSessionSave(t *testing.T) {
+	deleted := false
+	dir := stubEnvServing(t, testCookie, func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/delete-offer-line/") {
+			deleted = true
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if deleted {
+			_, _ = w.Write([]byte(emptyCartJSON))
+			return
+		}
+		_, _ = w.Write([]byte(detailCartJSON))
+	})
+	freezeConfigDir(t, dir)
+
+	if code := run([]string{"cart", "clear"}); code == 0 {
+		t.Error("want a non-zero exit when the session cannot be saved")
+	}
+}
+
+func TestCartAddSurfacesAFailedSessionSave(t *testing.T) {
+	added := false
+	prodHTML := `<script type="application/ld+json">{"@type":"Product","name":"Taladro","sku":"83085630","offers":{"price":"13.99","priceCurrency":"EUR"}}</script>` +
+		`<script>{"offer_id":"deadbeefdeadbeef"}</script>`
+	dir := stubEnvServing(t, testCookie, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "/productos/"):
+			_, _ = w.Write([]byte(prodHTML))
+		case r.URL.Path == "/cart/services/addToCart":
+			added = true
+			w.WriteHeader(http.StatusOK)
+		default:
+			quantity := 0
+			if added {
+				quantity = 1
+			}
+			_, _ = fmt.Fprintf(w, `{"quantity":%d,"order":"o1"}`, quantity)
+		}
+	})
+	freezeConfigDir(t, dir)
+
+	if code := run([]string{"cart", "add", "/productos/taladro-83085630.html", "--max", "50"}); code == 0 {
+		t.Error("want a non-zero exit when the session cannot be saved")
+	}
+}
+
+// `cart clear --json` reports the count as data rather than a sentence.
+func TestCartClearEmitsJSON(t *testing.T) {
+	cartMutStub(t)
+	out := captureStdout(t, func() {
+		if code := run([]string{"cart", "clear", "--json"}); code != 0 {
+			t.Errorf("exit = %d", code)
+		}
+	})
+	if !strings.Contains(out, `"cleared": 1`) {
+		t.Errorf("output = %q, want the cleared count as JSON", out)
+	}
+}
+
+// An unreadable cap must stop `cart set` too: a guard that cannot be computed
+// never silently lets the write through.
+func TestCartSetRejectsAnInvalidCap(t *testing.T) {
+	stubEnv(t, "http://127.0.0.1:1", testCookie)
+	t.Setenv("LEROYMERLIN_MAX_EUR", "abc")
+	if code := run([]string{"cart", "set", "83085630", "2"}); code == 0 {
+		t.Error("want a non-zero exit for an unparseable cap")
+	}
+}

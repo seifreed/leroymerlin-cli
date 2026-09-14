@@ -1054,3 +1054,46 @@ func TestSetCookieNamesAGuestCookie(t *testing.T) {
 		t.Errorf("stderr = %q, want the guest cookie named", errs)
 	}
 }
+
+// The structured form of a session command is the probe result, so a caller
+// that asked for JSON gets it instead of the sentence.
+func TestSetCookieEmitsTheProbeAsJSON(t *testing.T) {
+	stubEnv(t, stubServerFor(t, cardHTML), "")
+	out := captureStdout(t, func() {
+		if code := run([]string{"set-cookie", "--json", testCookie}); code != 0 {
+			t.Fatalf("exit = %d", code)
+		}
+	})
+	if !strings.Contains(out, `"reads_ok": true`) || !strings.Contains(out, `"signed_in": true`) {
+		t.Errorf("output = %q, want the probe as JSON", out)
+	}
+}
+
+// A term the storefront could not match is marked on the line and counted on
+// stderr, so a list read in a terminal shows which items are suggestions.
+func TestBatchMarksRelaxedTerms(t *testing.T) {
+	withStubServer(t, relaxedCardHTML)
+	var out string
+	errs := captureStderr(t, func() {
+		out = captureStdout(t, func() {
+			if code := run([]string{"batch", "tirafondos inexistentes"}); code != 0 {
+				t.Errorf("exit = %d", code)
+			}
+		})
+	})
+	if !strings.Contains(out, "sin coincidencia exacta") {
+		t.Errorf("output = %q, want the line marked", out)
+	}
+	if !strings.Contains(errs, "no exact match") {
+		t.Errorf("stderr = %q, want the count reported", errs)
+	}
+}
+
+// A 200 that carries no catalog is the challenge page: the cookie saved, and it
+// does not work. Saying "saved" there is how a stale clearance goes unnoticed.
+func TestSetCookieRefusesACookieThatReadsNoCatalog(t *testing.T) {
+	stubEnv(t, stubServerFor(t, "<html>challenge</html>"), "")
+	if code := run([]string{"set-cookie", testCookie}); code == 0 {
+		t.Error("want a non-zero exit when the saved cookie reads no catalog")
+	}
+}
