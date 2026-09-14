@@ -141,6 +141,13 @@ printf 'taladro percutor\nbrocas hormigón\nsilicona sanitaria blanca\ntirafondo
   blanca` matches those words, it does not filter by colour or material, so `--cheapest` ranks the
   hits — not the catalogue. Tell the user it that way ("la más barata de las que salen con esta
   búsqueda"), and widen the term or raise `--limit` before claiming a minimum.
+- **The cheapest hit of a loose term is usually an unrelated accessory.** `batch` and `total` resolve a
+  term to its **cheapest in-stock hit**, and the store's relevance is weak on vague or compound terms:
+  `cable manguera` (two different products in one term) answers *Viscosímetro WAGNER 4 mm — 6,99€*,
+  with no relaxation flag, because the storefront thinks it matched. Two habits kill this: write one
+  product per term with a spec (`cable 2.5mm`, `manguera de riego 15m`, not `cable manguera`), and
+  **sanity-check the price band** — a 6,99€ answer to something sold by the metre, or a 2€ answer to a
+  power tool, is a mismatch however confident the line looks.
 - **Prices agree across commands.** `search`, `product`, `total` and the cart all read the offer the
   storefront bills from, so do not try to reconcile a `product` price against a `search` hit — if they
   ever differ, report it rather than averaging or preferring one.

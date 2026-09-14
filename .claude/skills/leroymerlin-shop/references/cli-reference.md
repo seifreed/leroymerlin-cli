@@ -150,6 +150,10 @@ limit). A blocked line exits non-zero with `error: line … exceeds --max …` �
   user chooses a slot and pays in the browser.
 - **URL vs ref.** `product` / `cart add` take the **URL** (the full product slug); `cart set` / `brands`
   / `cart get` use the short **ref**. Take both from a search hit (`url`, `identifier`).
+- **Cheapest-hit resolution amplifies weak relevance.** `batch`/`total` take the cheapest in-stock hit,
+  so a vague or compound term (`cable manguera`) resolves to whatever cheap accessory the listing
+  contains — with no relaxation flag, because the storefront believes it matched. One product per term,
+  with a spec, and check the price band.
 - **A search never returns nothing.** With no match the storefront widens the query and answers with
   unrelated products. The CLI reads the page's verdict (`searchType`): `search`/`brands` warn on
   stderr, `batch --json` sets `"relaxed": true` on the hit, and `total` refuses the line
